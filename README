@@ -1,6 +1,7 @@
 == What is this?
 
 Network Attack and Defence Game using Pareto Optimization and Q-learning
+You will need to install Keras (https://keras.io/) and get numpy (pip install --user numpy scipy matplotlib ipython jupyter pandas sympy nose)
 
 == That sound complicated.
 
