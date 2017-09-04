@@ -10,11 +10,13 @@ import numpy as np
 class Config(object):
     """Define the configuration of the game"""
     # define graph
-    num_service = 3
-    num_viruses = 1
-    num_datadir = 1
-    num_nodes = 5
-    sparcity = 0.1
+    num_service = 4
+    num_viruses = 3
+    num_datadir = 2
+    num_nodes = 8
+    sparcity = 0.01
+    ratios = [4, 4, 1]
+    server_client_ratio = 0.3 
 
     # define the possible graph weights
     low_value_nodes = [[1, 10], [5, 15], [45, 75]]
@@ -77,8 +79,8 @@ class State(object):
             edge_max = int(self.config.sparcity * self.size_graph_rows * (self.size_graph_rows - 1))
             while self.size_graph_edges < edge_max:
                 # find two random nodes
-                random_node = random.randint(0, self.size_graph_rows)
-                connected_node = random.randint(0, self.size_graph_rows)
+                random_node = random.randint(0, self.size_graph_rows-1)
+                connected_node = random.randint(0, self.size_graph_rows-1)
 
                 # connect them, unless they're not already connected
                 if not (random_node == connected_node
@@ -97,25 +99,28 @@ class State(object):
             self.size_graph_edges = self.size_graph_edges / 2
 
         # create new weights for the graph
-        self.graph_weights = []
+        self.graph_weights = np.zeros(self.size_graph, dtype=np.int)
         if default_graph_weights is None or not isinstance(default_graph_weights, list):
             for i in range(0, self.size_graph_rows):
 
                 # set the possible values
-                node_value = random.randint(0, 1)
+                node_value = random.random() < self.config.server_client_ratio
 
                 # service weights
                 for j in range(0, self.size_graph_col1):
-                    self.graph_weights.append(random.randint(self.config.weights[node_value][0][0],
-                                                             self.config.weights[node_value][0][1]))
+                    self.graph_weights[(i * self.size_graph_cols) + j] = random.randint(
+                        self.config.weights[node_value][0][0],
+                        self.config.weights[node_value][0][1])
                 # virus weights
                 for j in range(self.size_graph_col1, self.size_graph_col2):
-                    self.graph_weights.append(random.randint(self.config.weights[node_value][1][0],
-                                                             self.config.weights[node_value][1][1]))
+                    self.graph_weights[(i * self.size_graph_cols) + j] = random.randint(
+                        self.config.weights[node_value][1][0],
+                        self.config.weights[node_value][1][1])
                 # data weights
                 for j in range(self.size_graph_col2, self.size_graph_cols):
-                    self.graph_weights.append(random.randint(self.config.weights[node_value][2][0],
-                                                             self.config.weights[node_value][2][1]))
+                    self.graph_weights[(i * self.size_graph_cols) + j] = random.randint(
+                        self.config.weights[node_value][2][0],
+                        self.config.weights[node_value][2][1])
 
         else:
             np.copyto(self.graph_weights, default_graph_weights)
@@ -127,10 +132,12 @@ class State(object):
         """Reset the state to the one provided"""
         # reset the service statuses
         if default_input is None:
-            self.nn_input = np.concatenate([np.zeros(self.size_graph/3, dtype=np.int),
-                                            np.ones(self.size_graph/3, dtype=np.int) * -1,
-                                            np.ones(self.size_graph - 2 * (self.size_graph/3),
-                                                    dtype=np.int),
+            num_nodes_up = (self.size_graph * self.config.ratios[0]) / np.sum(self.config.ratios)
+            num_nodes_down = (self.size_graph * self.config.ratios[1]) / np.sum(self.config.ratios)
+            num_nodes_unavailable = self.size_graph - (num_nodes_down + num_nodes_up)
+            self.nn_input = np.concatenate([np.zeros(num_nodes_down, dtype=np.int),
+                                            np.ones(num_nodes_up, dtype=np.int),
+                                            np.ones(num_nodes_unavailable, dtype=np.int) * -1,
                                             np.zeros(2, dtype=np.int)])
             np.random.shuffle(self.nn_input)
             self.nn_input[-2] = self.config.att_points
@@ -152,7 +159,7 @@ class State(object):
         self.score_now = np.zeros(3, dtype=np.int)
 
         # f_1: sum of weights for connected services
-        for node in range(0, self.graph_edges):
+        for node in range(0, self.size_graph_rows):
             for connected_node in self.graph_edges[node]:
                 if connected_node < node:
                     # loop through the services:
@@ -172,8 +179,8 @@ class State(object):
         # f_3: difference in game points
         self.score_now[2] = self.nn_input[-1] - self.nn_input[-2]
 
-        for i in (0, self.size_graph_rows):
-            for j in (0, self.size_graph_col2):
+        for i in range(0, self.size_graph_rows):
+            for j in range(0, self.size_graph_col2):
                 self.maintenance_cost += self.nn_input[(i * self.size_graph_cols) + j] == 1
 
     def reset_actions(self):
@@ -195,18 +202,19 @@ class State(object):
         for i in range(0, self.size_graph):
             if self.nn_input[i] == 1:
                 # check if this a service or virus
-                if i % self.size_graph_cols < self.size_graph_col2:
+                col_index = i % self.size_graph_cols
+                if col_index < self.size_graph_col2:
                     # check if we can afford to bring a service node down or install a virus
-                    if self.config.def_cost[(i % self.size_graph_cols)] <= self.nn_input[-1]:
+                    if self.config.def_cost[col_index] <= self.nn_input[-1]:
                         self.actions_att[i] = 1
                     else:
                         # action cost exceeds available points
                         self.actions_att[i] = 0
                 # it's data, so check if we can steal data
-                elif self.nn_input[i - (i%self.size_graph_cols) + self.size_graph_col1
-                                   :i -(i%self.size_graph_cols) + self.size_graph_col2] == 0:
+                elif not np.any(self.nn_input[i - col_index + self.size_graph_col1
+                                              :i - col_index + self.size_graph_col2] == 1):
                     # check if we can afford to steal data
-                    if self.config.def_cost[(i % self.size_graph_cols)] <= self.nn_input[-2]:
+                    if self.config.def_cost[col_index] <= self.nn_input[-2]:
                         self.actions_att[i] = 1
                     # action cost exceeds available points
                     else:
@@ -298,16 +306,16 @@ class State(object):
     def get_actions(self, defender=True):
         """Get a 2D representation of the graph"""
         if defender:
-            return self.actions_def.reshape(self.size_graph_rows, self.size_graph_cols)
+            return self.actions_def[:-1].reshape(self.size_graph_rows, self.size_graph_cols)
         else:
-            return self.actions_att.reshape(self.size_graph_rows, self.size_graph_cols)
+            return self.actions_att[:-1].reshape(self.size_graph_rows, self.size_graph_cols)
 
     def get_graph(self):
         """Get a 2D representation of the graph"""
         return self.nn_input[:-2].reshape(self.size_graph_rows, self.size_graph_cols)
 
     def get_weight(self):
-        """Get a 2D representation of the graph"""
+        """Get a 2D representation of the graph weigths"""
         return self.graph_weights.reshape(self.size_graph_rows, self.size_graph_cols)
 
     def get_points(self, defender=True):

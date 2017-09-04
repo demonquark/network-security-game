@@ -2,7 +2,79 @@
 
 from game import State, Config
 
-# create a new state
-config = Config()
+class TestState(object):
+    """Tests for the State and Config class"""
+    def __init__(self):
+        # create a new state
+        self.config = Config()
 
-state = State(config)
+    def generate_graph(self):
+        """Start again with a fresh graph"""
+        self.state = State(self.config)
+        self.state.generate_graph()
+
+    def print_graph(self):
+        """Print the graph"""
+        # generate a graph
+        headerline1 = "[["
+        headerline2 = "[["
+        for i in range (0, self.state.config.num_service):
+            headerline1 += " {} ".format(i)
+            headerline2 += " s "
+        for i in range (0, self.state.config.num_viruses):
+            headerline1 += " {} ".format(i + self.state.size_graph_col1)
+            headerline2 += " v "
+        for i in range (0, self.state.config.num_datadir):
+            headerline1 += " {} ".format(i + self.state.size_graph_col2)
+            headerline2 += " d "
+        headerline2 += "]]"
+        print headerline1
+        print headerline2
+        print self.state.get_graph()
+        print self.state.get_actions(True)
+        print self.state.get_actions(False)
+        print "Nodes: {}, Services: {}, Viruses: {}, Datadir: {}".format(self.state.config.num_nodes, self.state.config.num_service, 
+                                                                        self.state.config.num_viruses, self.state.config.num_datadir)
+        print "Game points: {}, {}".format(self.state.get_points(True), self.state.get_points(True))
+
+    def test_weights(self):
+        """Test the weights"""
+        print "--------- WEIGHTS -----------"
+        self.print_graph()
+        print self.state.get_weight()
+
+
+    def test_edges(self):
+        """Test the edges"""
+        print "--------- EDGES -----------"
+        self.print_graph()
+
+        for i in range(0, len(self.state.graph_edges)):
+            line = "{}: ".format(i)
+            for node in self.state.graph_edges[i]:
+                line += " {} ".format(node)
+            print line
+        print "Edges count: {}".format(self.state.size_graph_edges)
+
+
+    def test_valid_actions(self):
+        """Tests for valid actions graph"""
+        print "--------- VALID ACTIONS -----------"
+        self.print_graph()
+        for i in range(0, self.state.size_graph):
+            if self.state.nn_input[i] == 1:
+                if self.state.actions_att[i] != 1:
+                    print "A Check Data for Attack Action: {}, {}".format(i / self.state.size_graph_cols, i % self.state.size_graph_cols)
+                if self.state.actions_def[i] != 0:
+                    print "A Invalid Defence Action: {}, {}".format(i / self.state.size_graph_cols, i % self.state.size_graph_cols)
+            elif self.state.nn_input[i] == 0:
+                if self.state.actions_att[i] != 0:
+                    print "B Invalid Attack Action: {}, {}".format(i / self.state.size_graph_cols, i % self.state.size_graph_cols)
+                if self.state.actions_def[i] != 1 and i % self.state.size_graph_cols < self.state.size_graph_col2:
+                    print "B Invalid Defence Action: {}, {}".format(i / self.state.size_graph_cols, i % self.state.size_graph_cols)
+            else:
+                if self.state.actions_att[i] != 0:
+                    print "C Invalid Attack Action: {}, {}".format(i / self.state.size_graph_cols, i % self.state.size_graph_cols)
+                if self.state.actions_def[i] != 0:
+                    print "C Invalid Defence Action: {}, {}".format(i / self.state.size_graph_cols, i % self.state.size_graph_cols)
+        
