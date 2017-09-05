@@ -132,8 +132,8 @@ class State(object):
         """Reset the state to the one provided"""
         # reset the service statuses
         if default_input is None:
-            num_nodes_up = (self.size_graph * self.config.ratios[0]) / np.sum(self.config.ratios)
-            num_nodes_down = (self.size_graph * self.config.ratios[1]) / np.sum(self.config.ratios)
+            num_nodes_up = (self.size_graph * self.config.ratios[0]) // np.sum(self.config.ratios)
+            num_nodes_down = (self.size_graph * self.config.ratios[1]) // np.sum(self.config.ratios)
             num_nodes_unavailable = self.size_graph - (num_nodes_down + num_nodes_up)
             self.nn_input = np.concatenate([np.zeros(num_nodes_down, dtype=np.int),
                                             np.ones(num_nodes_up, dtype=np.int),
