@@ -118,6 +118,7 @@ def find_pareto_ixs(cost_arrays):
     :param cost_arrays: A collection of nd-arrays representing a grid of costs for different indices.
     :return: A tuple of indices which can be used to index the pareto-efficient points.
     """
+    print(c.shape for c in cost_arrays)
     assert all_equal([c.shape for c in cost_arrays])
     flat_ixs, = np.nonzero(is_pareto_efficient(np.reshape(cost_arrays, (len(cost_arrays), -1)).T), )
     ixs = np.unravel_index(flat_ixs, dims=cost_arrays[0].shape)
@@ -152,39 +153,52 @@ def prep_perato(attackActions, defenceActions):
 
 
 def prep_pareto_efficient(attackActions,defenceActions): #input is a numpy array of attacks for each diffence strategy
-    mixInputs = np.zeros(defenceActions.shape[0],defenceActions.shape)
+    
+    mixInputs = np.zeros((defenceActions.shape[0],attackActions.shape[0],attackActions.shape[1]))
     mixIndices = 0
 
-    for i in enumerate(defenceActions):
+    for i,c in enumerate(defenceActions):
         
-        mixInputs[i,:,:] = attackActions
-        #paretoPoints  = is_pareto_efficient(np.array(tempMix))
+        
+        attackActions =np.array([[random.randint(70,100) for i in range(3)] for j in range(10)])
+        
+        paretoPoints  = is_pareto_efficient(attackActions)
+        #print(len(attackActions[paretoPoints]))
+
+        mixInputs[i,0:len(attackActions[paretoPoints]),:] = attackActions[paretoPoints]
 
         #print (paretoPoints)
-        #print (actionIndices)
+        #print (i)
         #mixInputs.append(paretoPoints)
+    #print(mixInputs)
 
-    return mixIndices
+    return mixInputs
 
 
 
 import random
 
+x = np.array([[random.randint(70,100) for i in range(3)] for j in range(10)])
+attackActions = [[random.randint(70,100) for i in range(3)] for j in range(10)]
+defenceActions = [[random.randint(70,100) for i in range(3)] for j in range(5)]
 
-attackActions = [[random.randint(70,100) for i in range(3)] for j in range(1000)]
-defenceActions = [[random.randint(70,100) for i in range(3)] for j in range(1000)]
-
-attackActions2 = attackActions[:]
-defenceActions2 = defenceActions[:]
-
-
-inputPoints = [[random.randint(70,100) for i in range(3)] for j in range(1000)]
-inputPoints2 = inputPoints[:]
-
-inp = np.array(inputPoints2)
+attackActions2 = np.array(attackActions)
+defenceActions2 = np.array(defenceActions)
 
 
-prep_pareto_efficient
+#inputPoints = [[random.randint(70,100) for i in range(3)] for j in range(1000)]
+#inputPoints2 = inputPoints[:]
+
+#inp = np.array(inputPoints2)
+
+
+
+
+pp = prep_pareto_efficient(np.array(attackActions2),np.array(defenceActions2))
+
+ins = find_pareto_ixs(pp)
+
+print(ins)
 
 print(inputPoints)
 print("===")
