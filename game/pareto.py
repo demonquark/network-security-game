@@ -118,8 +118,8 @@ def find_pareto_ixs(cost_arrays):
     :param cost_arrays: A collection of nd-arrays representing a grid of costs for different indices.
     :return: A tuple of indices which can be used to index the pareto-efficient points.
     """
-    print(c.shape for c in cost_arrays)
-    assert all_equal([c.shape for c in cost_arrays])
+    #print(c.shape for c in cost_arrays)
+    #assert all_equal([c.shape for c in cost_arrays])
     flat_ixs, = np.nonzero(is_pareto_efficient(np.reshape(cost_arrays, (len(cost_arrays), -1)).T), )
     ixs = np.unravel_index(flat_ixs, dims=cost_arrays[0].shape)
     return ixs
@@ -160,7 +160,7 @@ def prep_pareto_efficient(attackActions,defenceActions): #input is a numpy array
     for i,c in enumerate(defenceActions):
         
         
-        attackActions =np.array([[random.randint(70,100) for i in range(3)] for j in range(10)])
+        attackActions =np.array([[random.randint(70,100) for i in range(3)] for j in range(100)])
         
         paretoPoints  = is_pareto_efficient(attackActions)
         #print(len(attackActions[paretoPoints]))
@@ -178,9 +178,9 @@ def prep_pareto_efficient(attackActions,defenceActions): #input is a numpy array
 
 import random
 
-x = np.array([[random.randint(70,100) for i in range(3)] for j in range(10)])
-attackActions = [[random.randint(70,100) for i in range(3)] for j in range(10)]
-defenceActions = [[random.randint(70,100) for i in range(3)] for j in range(5)]
+
+attackActions = [[random.randint(70,100) for i in range(3)] for j in range(100)]
+defenceActions = [[random.randint(70,100) for i in range(3)] for j in range(100)]
 
 attackActions2 = np.array(attackActions)
 defenceActions2 = np.array(defenceActions)
@@ -200,25 +200,25 @@ ins = find_pareto_ixs(pp)
 
 print(ins)
 
-print(inputPoints)
-print("===")
-print(inputPoints)
+#print(inputPoints)
+#print("===")
+#print(inputPoints)
 
-print("==simple_cull=")
-start_time = time.time()
-paretoPoints, actionIndices = simple_cull(inputPoints, dominates)
-print(paretoPoints)
-print ("--- %s seconds ---" % (time.time() - start_time))
+#print("==simple_cull=")
+#start_time = time.time()
+#paretoPoints, actionIndices = simple_cull(inputPoints, dominates)
+#print(paretoPoints)
+#print ("--- %s seconds ---" % (time.time() - start_time))
 
 
-print("==is_pareto_efficient=")
+#print("==is_pareto_efficient=")
 
 
 #print(inp)
-start_time = time.time()
-poindex = is_pareto_efficient(np.array(inputPoints2))
-print(inp[poindex])
-print ("--- %s seconds ---" % (time.time() - start_time))
+#start_time = time.time()
+#poindex = is_pareto_efficient(np.array(inputPoints2))
+#print(inp[poindex])
+#print ("--- %s seconds ---" % (time.time() - start_time))
 
 
 
