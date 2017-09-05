@@ -12,10 +12,10 @@ from keras.optimizers import RMSprop
 
 # create a new state
 config = Config()
-config.num_service = 4
+config.num_service = 3
 config.num_viruses = 1
 config.num_datadir = 1
-config.num_nodes = 500
+config.num_nodes = 250
 config.sparcity = 0.1
 config.att_points = 100
 config.def_points = 100
@@ -28,10 +28,10 @@ state = reader.read_state()
 
 # create the DQN
 model = Sequential()
-model.add(Dense(units=350, input_dim=state.nn_input.size))
+model.add(Dense(units=400, input_dim=state.nn_input.size))
 model.add(Activation('relu'))
 
-model.add(Dense(units=250))
+model.add(Dense(units=350))
 model.add(Activation('relu'))
 
 model.add(Dense(units=(state.size_graph+1)))
@@ -59,28 +59,29 @@ start_time = time.time()
 failsafe = 0
 reward_sum = 0
 avg_sum = 0
+act1 = 0
+act2 = 0
 
-epochs = 3000
-gamma = 0.01 # since it may take several moves to goal, making gamma high
+epochs = 5000
+gamma = 0.1 # since it may take several moves to goal, making gamma high
 epsilon = 0
 for i in range(epochs):
 
-    epsilon = 0.1 if epochs > 1000 else 0.8
+    # epsilon = 0.1 if i < 500 else 0.8
+    epsilon = (1 - (i * 1. / epochs)) if i < (epochs * 3 / 5)  else 0.2
     state = reader.read_state()
     nn_input_old = np.zeros(state.size_graph + 2, dtype=np.int) # +2 for the game points
     y = np.zeros((1, state.size_graph+1))
 
-    q_table = model.predict(state.nn_input.reshape(1, state.nn_input.size), batch_size=1)
-    # output_string += "{0}) {1} | {2}: {3!r}\n".format(failsafe%10,
+    # q_table = model.predict(state.nn_input.reshape(1, state.nn_input.size), batch_size=1)
+    # output_string += "{0}) {1} | {2}: {3!r}\n".format(i,
     #                                         int(reward_sum),
     #                                         np.argmax(q_table[0] - min(q_table[0])),
     #                                         np.array(q_table[0], dtype=np.int).tolist())
 
-    if i <= 100:
-        output_string += "{0}\n".format(int(reward_sum))
-    elif i % 50 == 0:
+    if i % 50 == 0:
         output_string += "{0}\n".format(int(avg_sum / 50))
-        avg_sum = 0         
+        avg_sum = 0
     else:
         avg_sum += reward_sum
     
@@ -112,6 +113,10 @@ for i in range(epochs):
         # Take actions, observe new state
         np.copyto(nn_input_old, state.nn_input)
         state.make_move(action_att, action_def)
+
+        if failsafe == 0:
+            act1 = action_att
+            act2 = action_def
 
         # Observe reward
         score_now = state.get_score(True)
