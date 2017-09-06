@@ -102,6 +102,19 @@ def is_pareto_efficient(costs):
             is_efficient[is_efficient] = np.any(costs[is_efficient]>=c, axis=1)  # Remove dominated points
     return is_efficient
 
+def is_pareto_efficient_def(costs):
+    """
+    :param costs: An (n_points, n_costs) array
+    :return: A (n_points, ) boolean array, indicating whether each point is Pareto efficient
+    """
+    is_efficient = np.ones(costs.shape[0], dtype = bool)
+    for i, c in enumerate(costs):
+        #print(2)
+        if is_efficient[i]:
+            is_efficient[is_efficient] = np.any(costs[is_efficient]<=c, axis=1)  # Remove dominated points
+    return is_efficient
+
+
 
 def all_equal(elements):
     """
@@ -158,7 +171,7 @@ def prep_perato(attackActions, defenceActions):
 def prep_pareto_efficient(attackActions,defenceActions): #input is a numpy array of attacks for each diffence strategy
     
     mixInputs = np.zeros((defenceActions.shape[0],attackActions.shape[0],attackActions.shape[1]))
-    mixIndices = 0
+    mixIndices = []
     #print(defenceActions)
 
     attackActionsZero =np.array([[random.randint(70,100) for i in range(3)] for j in range(500)])
@@ -176,21 +189,33 @@ def prep_pareto_efficient(attackActions,defenceActions): #input is a numpy array
 
         #print(newRowFront)
 
-        #print((np.amax(newRowFront, axis=0)))
-        
-        
+        #print((np.maximum(newRowFront[0], newRowFront[1], newRowFront[2])))
+        x = np.amin(newRowFront, axis=0)
+        print(x)
+        front_count = 0
+
         for j,d in enumerate(d_rowZero):
+            
             #print(len(newRowFront))
             #print(d)
             #k = [[88,88,88],[88,88,90],[88,88,77]]
-            st = np.vstack((d,newRowFront))
-            ix = is_pareto_efficient(st)
+            
+            st = np.vstack((d,x))
+            ix = is_pareto_efficient_def(st)
+            print(ix)
+            if ix[1]:
+                front_count += 1
+            
             #print(ix[0])
             #print(len(st[ix]))
-        if len(st[ix]) == 1 & ix[0]:
+
+        print(front_count)
+        print(j+1)
+        if j+1 == front_count:
             print("domi")
         else:
             print(i)
+            mixIndices.append(i)
             #print(len(attackActions[paretoPoints]))
         print ("--- loop timing%s seconds ---" % (time.time() - start_time))
             
