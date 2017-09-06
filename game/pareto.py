@@ -10,7 +10,6 @@ def is_pareto_efficient(costs):
     """
     is_efficient = np.ones(costs.shape[0], dtype = bool)
     for i, c in enumerate(costs):
-        #print(2)
         if is_efficient[i]:
             is_efficient[is_efficient] = np.any(costs[is_efficient]>=c, axis=1)  # Remove dominated points
     return is_efficient
@@ -22,6 +21,10 @@ def is_pareto_efficient_def(costs):
     """
     is_efficient = np.ones(costs.shape[0], dtype = bool)
     for i, c in enumerate(costs):
+        print("==loop %s ===" % i)
+        print(costs[is_efficient])
+        print("**")
+        print(c)
         #print(2)
         if is_efficient[i]:
             is_efficient[is_efficient] = np.any(costs[is_efficient]<=c, axis=1)  # Remove dominated points
@@ -45,17 +48,19 @@ def prep_pareto_efficient(defenceActions): #input is a numpy array of attacks fo
         newRowFront = attackActions[paretoPoints]
         
         #np.maximum(newRowFront[0], newRowFront[1], newRowFront[2]) 
-        x = np.amin(newRowFront, axis=0)
+        a_min = np.amin(newRowFront, axis=0)
         #print(x)
         efficient = True
 
         for j,d in enumerate(d_rowZero):
             
-            st = np.vstack((d,x))
+            st = np.vstack((d,a_min))
+            #st = np.vstack((d,newRowFront))
             ix = is_pareto_efficient_def(st)
             #print(ix)
-       
-            if not ix.all():
+            
+            #if np.any(ix[1]):
+            if np.any(np.subtract(a_min,d))>0:
                 efficient = False
                 break
             
@@ -74,8 +79,8 @@ import random
 
 
 testDef = []
-for x in range(500):
-    testDef.append(np.array([[random.randint(70,100) for i in range(3)] for j in range(500)]))
+for x in range(10):
+    testDef.append(np.array([[random.randint(70,100) for i in range(3)] for j in range(10)]))
 print(testDef[0])
     
 
