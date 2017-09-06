@@ -5,6 +5,7 @@ import time
 config = Config()
 state = State(config)
 
+#not used any more
 def simple_cull(inputPoints, dominates):
     paretoPoints = []#set()
     actionIndices = []#set()
@@ -52,9 +53,11 @@ def simple_cull(inputPoints, dominates):
         
     return paretoPoints, actionIndices
 
+#not used anymore
 def dominates(row, candidateRow):
     return sum([row[x] >= candidateRow[x] for x in range(len(row))]) == len(row)  
 
+#not used, but needs a similar logic
 def dominates_two(def_row, def_candidateRow):
     dominated = False
     candidateColNr = 0
@@ -124,7 +127,7 @@ def find_pareto_ixs(cost_arrays):
     ixs = np.unravel_index(flat_ixs, dims=cost_arrays[0].shape)
     return ixs
 
-
+#this is old combination function (nolonger used)
 def prep_perato(attackActions, defenceActions):
     mixInputs = []
     for i in defenceActions:
@@ -156,16 +159,45 @@ def prep_pareto_efficient(attackActions,defenceActions): #input is a numpy array
     
     mixInputs = np.zeros((defenceActions.shape[0],attackActions.shape[0],attackActions.shape[1]))
     mixIndices = 0
+    #print(defenceActions)
+
+    attackActionsZero =np.array([[random.randint(70,100) for i in range(3)] for j in range(500)])
+    d_rowZero = attackActionsZero[is_pareto_efficient(attackActionsZero)]
+    #print(d_rowZero)
 
     for i,c in enumerate(defenceActions):
         
         
-        attackActions =np.array([[random.randint(70,100) for i in range(3)] for j in range(100)])
-        
+        attackActions =np.array([[random.randint(70,100) for i in range(3)] for j in range(500)])
         paretoPoints  = is_pareto_efficient(attackActions)
-        #print(len(attackActions[paretoPoints]))
+        newRowFront = attackActions[paretoPoints]
+        start_time = time.time()
+        #print(c)
 
-        mixInputs[i,0:len(attackActions[paretoPoints]),:] = attackActions[paretoPoints]
+        #print(newRowFront)
+
+        #print((np.amax(newRowFront, axis=0)))
+        
+        
+        for j,d in enumerate(d_rowZero):
+            #print(len(newRowFront))
+            #print(d)
+            #k = [[88,88,88],[88,88,90],[88,88,77]]
+            st = np.vstack((d,newRowFront))
+            ix = is_pareto_efficient(st)
+            #print(ix[0])
+            #print(len(st[ix]))
+        if len(st[ix]) == 1 & ix[0]:
+            print("domi")
+        else:
+            print(i)
+            #print(len(attackActions[paretoPoints]))
+        print ("--- loop timing%s seconds ---" % (time.time() - start_time))
+            
+
+
+        d_rowZero = newRowFront
+        #mixInputs[i,0:len(attackActions[paretoPoints]),:] = attackActions[paretoPoints]
 
         #print (paretoPoints)
         #print (i)
@@ -179,8 +211,8 @@ def prep_pareto_efficient(attackActions,defenceActions): #input is a numpy array
 import random
 
 
-attackActions = [[random.randint(70,100) for i in range(3)] for j in range(100)]
-defenceActions = [[random.randint(70,100) for i in range(3)] for j in range(100)]
+attackActions = [[random.randint(70,100) for i in range(3)] for j in range(500)]
+defenceActions = [[random.randint(70,100) for i in range(3)] for j in range(500)]
 
 attackActions2 = np.array(attackActions)
 defenceActions2 = np.array(defenceActions)
@@ -192,13 +224,13 @@ defenceActions2 = np.array(defenceActions)
 #inp = np.array(inputPoints2)
 
 
-
+start_time = time.time()
 
 pp = prep_pareto_efficient(np.array(attackActions2),np.array(defenceActions2))
 
-ins = find_pareto_ixs(pp)
+#ins = find_pareto_ixs(pp)
 
-print(ins)
+#print(ins)
 
 #print(inputPoints)
 #print("===")
@@ -208,7 +240,7 @@ print(ins)
 #start_time = time.time()
 #paretoPoints, actionIndices = simple_cull(inputPoints, dominates)
 #print(paretoPoints)
-#print ("--- %s seconds ---" % (time.time() - start_time))
+print ("--- %s seconds ---" % (time.time() - start_time))
 
 
 #print("==is_pareto_efficient=")
