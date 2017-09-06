@@ -34,7 +34,7 @@ def prep_pareto_efficient(defenceActions): #input is a numpy array of attacks fo
     #print(defenceActions)
     
     mixIndices = []
-    attackActionsZero = testDef[0]
+    attackActionsZero = defenceActions[0]
     d_rowZero = attackActionsZero[is_pareto_efficient(attackActionsZero)]
     #print(d_rowZero)
 
@@ -55,7 +55,7 @@ def prep_pareto_efficient(defenceActions): #input is a numpy array of attacks fo
             ix = is_pareto_efficient_def(st)
             #print(ix)
        
-            if ix[1]:
+            if not ix.all():
                 efficient = False
                 break
             
