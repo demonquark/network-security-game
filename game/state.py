@@ -31,6 +31,7 @@ class Config(object):
 
     # define scalarization weights
     scalarization = np.array([6, 2, 2], dtype=np.int)
+    offset = np.zeros(3, dtype=np.int)
 
 class State(object):
     """Save the values in a state"""
@@ -193,6 +194,11 @@ class State(object):
         for i in range(0, self.size_graph_rows):
             for j in range(0, self.size_graph_col2):
                 self.maintenance_cost += self.nn_input[(i * self.size_graph_cols) + j] == 1
+
+    def reset_game_points(self):
+        """Reset the game point in the input"""
+        self.nn_input[-2] = self.config.att_points
+        self.nn_input[-1] = self.config.def_points        
 
     def reset_actions(self):
         """Get an array showing the valid actions"""
