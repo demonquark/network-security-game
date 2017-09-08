@@ -10,31 +10,28 @@ import numpy as np
 class Config(object):
     """Define the configuration of the game"""
     # define graph
-    num_service = 4
-    num_viruses = 3
-    num_datadir = 2
+    num_service = 3
+    num_viruses = 1
+    num_datadir = 1
     num_nodes = 8
+
     sparcity = 0.01
-    ratios = [4, 4, 1]
-    server_client_ratio = 0.3 
+    server_client_ratio = 0.2
+    ratios = np.array([4, 4, 1], dtype=np.int)
 
     # define the possible graph weights
-    low_value_nodes = [[1, 10], [5, 15], [45, 75]]
-    high_value_nodes = [[20, 30], [45, 60], [150, 300]]
-    weights = [low_value_nodes, high_value_nodes]
+    low_value_nodes = [[1, 10], [5, 15], [15, 25]]
+    high_value_nodes = [[20, 30], [45, 60], [60, 80]]
 
     # define the attack and defence costs
-    att_points = 50
-    def_points = 50
-    att_cost = np.concatenate([np.ones(num_service, dtype=np.int) * 5,
-                               np.ones(num_viruses, dtype=np.int) * 10,
-                               np.ones(num_datadir, dtype=np.int) * 20])
-    def_cost = np.concatenate([np.ones(num_service, dtype=np.int) * 5,
-                               np.ones(num_viruses, dtype=np.int) * 10,
-                               np.ones(num_datadir, dtype=np.int) * 0])
+    att_points = 100
+    def_points = 100
+    att_cost_weights = np.array([2, 5, 8], dtype=np.int)
+    def_cost_weights = np.array([3, 6, 0], dtype=np.int)
 
     # define scalarization weights
-    scalarization = [6, 2, 2]
+    scalarization = np.array([6, 2, 2], dtype=np.int)
+    offset = np.zeros(3, dtype=np.int)
 
 class State(object):
     """Save the values in a state"""
@@ -49,17 +46,31 @@ class State(object):
         self.size_graph_edges = 0
         self.graph_edges = default_edges
         self.graph_weights = default_graph_weights
+        self.possible_weights = [config.low_value_nodes, config.high_value_nodes]
 
         # score variables
         self.reward_sum = 0
         self.maintenance_cost = 0
-        self.score_old = [0, 0, 0]
-        self.score_now = [0, 0, 0]
+        self.score_old = np.zeros(3, dtype=np.int)
+        self.score_now = np.zeros(3, dtype=np.int)
+
+        self.att_cost = np.concatenate([np.ones(config.num_service, dtype=np.int)
+                                        * config.att_cost_weights[0],
+                                        np.ones(config.num_viruses, dtype=np.int)
+                                        * config.att_cost_weights[1],
+                                        np.ones(config.num_datadir, dtype=np.int)
+                                        * config.att_cost_weights[2]])
+        self.def_cost = np.concatenate([np.ones(config.num_service, dtype=np.int)
+                                        * config.def_cost_weights[0],
+                                        np.ones(config.num_viruses, dtype=np.int)
+                                        * config.def_cost_weights[1],
+                                        np.ones(config.num_datadir, dtype=np.int)
+                                        * config.def_cost_weights[2]])
 
         # neural network variables
         self.nn_input = np.zeros(self.size_graph + 2, dtype=np.int) # +2 for the game points
-        self.actions_def = np.zeros(self.size_graph + 1, dtype=np.int) # +1 for do nothing
-        self.actions_att = np.zeros(self.size_graph + 1, dtype=np.int) # +1 for do nothing
+        self.actions_def = np.ones(self.size_graph + 1, dtype=np.int) # +1 for do nothing
+        self.actions_att = np.ones(self.size_graph + 1, dtype=np.int) # +1 for do nothing
         self.generate_graph(default_input, default_edges, default_graph_weights)
 
     def generate_graph(self, default_input=None, default_edges=None, default_graph_weights=None):
@@ -90,7 +101,7 @@ class State(object):
                     self.size_graph_edges += 1
         else:
             # set the edges to the provided list
-            np.copyto(self.graph_edges, default_edges)
+            self.graph_edges = default_edges[:]
 
             # calculate the number of edges
             self.size_graph_edges = 0
@@ -100,7 +111,7 @@ class State(object):
 
         # create new weights for the graph
         self.graph_weights = np.zeros(self.size_graph, dtype=np.int)
-        if default_graph_weights is None or not isinstance(default_graph_weights, list):
+        if default_graph_weights is None:
             for i in range(0, self.size_graph_rows):
 
                 # set the possible values
@@ -109,18 +120,18 @@ class State(object):
                 # service weights
                 for j in range(0, self.size_graph_col1):
                     self.graph_weights[(i * self.size_graph_cols) + j] = random.randint(
-                        self.config.weights[node_value][0][0],
-                        self.config.weights[node_value][0][1])
+                        self.possible_weights[node_value][0][0],
+                        self.possible_weights[node_value][0][1])
                 # virus weights
                 for j in range(self.size_graph_col1, self.size_graph_col2):
                     self.graph_weights[(i * self.size_graph_cols) + j] = random.randint(
-                        self.config.weights[node_value][1][0],
-                        self.config.weights[node_value][1][1])
+                        self.possible_weights[node_value][1][0],
+                        self.possible_weights[node_value][1][1])
                 # data weights
                 for j in range(self.size_graph_col2, self.size_graph_cols):
                     self.graph_weights[(i * self.size_graph_cols) + j] = random.randint(
-                        self.config.weights[node_value][2][0],
-                        self.config.weights[node_value][2][1])
+                        self.possible_weights[node_value][2][0],
+                        self.possible_weights[node_value][2][1])
 
         else:
             np.copyto(self.graph_weights, default_graph_weights)
@@ -130,6 +141,7 @@ class State(object):
 
     def reset_state(self, default_input):
         """Reset the state to the one provided"""
+
         # reset the service statuses
         if default_input is None:
             num_nodes_up = (self.size_graph * self.config.ratios[0]) // np.sum(self.config.ratios)
@@ -172,7 +184,7 @@ class State(object):
 
         # f_2: sum of weight for data and viruses
         for i in range(0, self.size_graph_rows):
-            for j in range(self.size_graph_col2, self.size_graph_cols):
+            for j in range(self.size_graph_col1, self.size_graph_cols):
                 if self.nn_input[(i * self.size_graph_cols) + j] == 1:
                     self.score_now[1] += self.graph_weights[(i * self.size_graph_cols) + j]
 
@@ -183,13 +195,18 @@ class State(object):
             for j in range(0, self.size_graph_col2):
                 self.maintenance_cost += self.nn_input[(i * self.size_graph_cols) + j] == 1
 
+    def reset_game_points(self):
+        """Reset the game point in the input"""
+        self.nn_input[-2] = self.config.att_points
+        self.nn_input[-1] = self.config.def_points        
+
     def reset_actions(self):
         """Get an array showing the valid actions"""
         # loop through the graph and find the defender actions
         for i in range(0, self.size_graph):
             if i % self.size_graph_cols < self.size_graph_col2 and self.nn_input[i] == 0:
                 # check if we can afford to bring a service node back up or uninstall a virus
-                if self.config.def_cost[(i % self.size_graph_cols)] <= self.nn_input[-1]:
+                if self.def_cost[(i % self.size_graph_cols)] <= self.nn_input[-1]:
                     self.actions_def[i] = 1
                 # action cost exceeds available points
                 else:
@@ -205,7 +222,7 @@ class State(object):
                 col_index = i % self.size_graph_cols
                 if col_index < self.size_graph_col2:
                     # check if we can afford to bring a service node down or install a virus
-                    if self.config.def_cost[col_index] <= self.nn_input[-1]:
+                    if self.att_cost[col_index] <= self.nn_input[-1]:
                         self.actions_att[i] = 1
                     else:
                         # action cost exceeds available points
@@ -214,7 +231,7 @@ class State(object):
                 elif not np.any(self.nn_input[i - col_index + self.size_graph_col1
                                               :i - col_index + self.size_graph_col2] == 1):
                     # check if we can afford to steal data
-                    if self.config.def_cost[col_index] <= self.nn_input[-2]:
+                    if self.att_cost[col_index] <= self.nn_input[-2]:
                         self.actions_att[i] = 1
                     # action cost exceeds available points
                     else:
@@ -225,7 +242,7 @@ class State(object):
             else:
                 self.actions_att[i] = 0
 
-    def make_move(self, def_action=-1, att_action=-1):
+    def make_move(self, att_action=-1, def_action=-1):
         """Make a move"""
 
         # default action is do nothing
@@ -236,15 +253,16 @@ class State(object):
 
         # attacker action
         if att_action >= 0:
+
             # bring the node down
             self.nn_input[att_action] = 0
-            
+
             # incur a cost for performing the action
-            self.nn_input[-2] -= self.config.att_cost[att_action % self.size_graph_cols]
+            self.nn_input[-2] -= self.att_cost[att_action % self.size_graph_cols]
 
             # update the valid actions
             self.actions_att[att_action] = 0
-            if att_action % self.size_graph_cols >= self.size_graph_col2:
+            if att_action % self.size_graph_cols < self.size_graph_col2:
                 self.actions_def[att_action] = 1
 
             # update the maintenance cost
@@ -260,14 +278,21 @@ class State(object):
             self.actions_att[def_action] = 1
 
             # incur a cost for performing the action
-            self.nn_input[-2] -= self.config.def_cost[def_action % self.size_graph_cols]
+            self.nn_input[-1] -= self.def_cost[def_action % self.size_graph_cols]
+
+            # update the maintenance cost
+            self.maintenance_cost -= def_action % self.size_graph_cols < self.size_graph_col2
+
+        # incur maintenance cost
+        self.nn_input[-2] -= self.maintenance_cost
 
         # update scores
-        self.__update_score(def_action, att_action)
+        self.__update_score(att_action, def_action)
+        self.__update_valid_actions(att_action, def_action)
 
         return self.score_now
 
-    def __update_score(self, def_action=-1, att_action=-1):
+    def __update_score(self, att_action=-1, def_action=-1):
         """Update the score based on the supplied moves"""
 
         # default action is do nothing
@@ -303,6 +328,45 @@ class State(object):
         # f_3: difference in game points
         self.score_now[2] = self.nn_input[-1] - self.nn_input[-2]
 
+
+    def __update_valid_actions(self, att_action=-1, def_action=-1):
+        """Update the valid actions based on remaining game points"""
+
+        # default action is do nothing
+        if def_action >= self.size_graph:
+            def_action = -1
+        if att_action >= self.size_graph:
+            att_action = -1
+
+        # update the possibility to steal data due to attack moves
+        col_index = att_action % self.size_graph_cols
+        if (att_action > 0 and col_index >= self.size_graph_col1 and
+                col_index < self.size_graph_col2):
+            virus_index = att_action - col_index + self.size_graph_col1
+            data_index = att_action - col_index + self.size_graph_col2
+            if not np.any(self.actions_att[virus_index:data_index] == 1):
+                for i in range(data_index, att_action - col_index + self.size_graph_cols):
+                    if self.nn_input[i] == 1:
+                        self.actions_att[i] = 1
+
+        # update the possibility to steal data due to defence moves
+        col_index = def_action % self.size_graph_cols
+        if (def_action > 0 and col_index >= self.size_graph_col1 and
+                col_index < self.size_graph_col2):
+            data_index = def_action - col_index + self.size_graph_col2
+            self.actions_att[data_index:def_action - col_index + self.size_graph_cols] = 0
+
+        # update cost restrictions for attacker
+        for i in range(0, self.size_graph_cols):
+            if self.nn_input[-2] < self.att_cost[i]:
+                self.actions_att[i:self.size_graph:self.size_graph_cols] = 0
+
+        # update cost restrictions for defender
+        for i in range(0, self.size_graph_cols):
+            if self.nn_input[-1] < self.def_cost[i]:
+                self.actions_def[i:self.size_graph:self.size_graph_cols] = 0
+
+
     def get_actions(self, defender=True):
         """Get a 2D representation of the graph"""
         if defender:
@@ -322,6 +386,6 @@ class State(object):
         """Get a 2 element array showing current game points"""
         return self.nn_input[-1] if defender else self.nn_input[-2]
 
-    def get_score(self):
+    def get_score(self, current=True):
         """Get the score of the current state"""
-        return self.score_now
+        return self.score_now if current else self.score_old
