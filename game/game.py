@@ -99,6 +99,9 @@ def print_graph(s_out):
                                                                         s_out.score_old, s_out.get_score(), s_out.maintenance_cost))
     print ("---------")
 
+
+def run_game()
+
 # variables
 epochs = 50
 gamma = 0.1 # since immediate rewards are more important keep gamma low
@@ -110,6 +113,7 @@ output_string = "\n"
 output_string2 = "\n"
 output_string3 = "\n"
 
+	
 
 # Configuration
 config = Config()
@@ -177,8 +181,6 @@ for i in range(epochs):
             if state.actions_att[action_att] == 1:
                 break
 
-        action_def = state.size_graph
-
         # Take actions, observe new state
         np.copyto(nn_input_old, state.nn_input)
         state.make_move(action_att, action_def)
@@ -197,8 +199,8 @@ for i in range(epochs):
         np.copyto(check_three, score_float)
         reward = np.dot(state.config.scalarization, score_float) / np.sum(state.config.scalarization)
 
-        # output_string3 += ("{0}) {1} : {2} {3} {4} ".format(steps, action_def, check_one.astype(int), check_two.astype(int), check_three.astype(int)))
-        # output_string3 += ("{0} {1} {2} \n".format(score_float.astype(int), state.config.scalarization, reward))
+        output_string3 += ("{0}) {1} : {2} {3} {4} ".format(steps, action_def, check_one.astype(int), check_two.astype(int), check_three.astype(int)))
+        output_string3 += ("{0} {1} {2} \n".format(score_float.astype(int), state.config.scalarization, reward))
 
         # Get max_Q(S',a)
         q_table_new_state = model.predict(state.nn_input.reshape(1, state.nn_input.size), batch_size=1)
@@ -213,15 +215,13 @@ for i in range(epochs):
         # move to the next state
         reward_sum += reward
         steps += 1
-        output_string3 += ("{} \n".format(reward_sum)
 
     # output the data
+    avg_sum += reward_sum
     if (i % (epochs / 100)) == 0:
         output_string += "{0}\n".format(int((avg_sum * 100) / epochs))
         output_string2 += "{0!r}\n".format(np.divide(vector_reward_sum, 10).astype(int).tolist())
         avg_sum = 0
-    else:
-        avg_sum += reward_sum
     
     # output_string += "{0}) {1} | {2}: {3!r}\n".format(i,
     #                                         int(reward_sum),
@@ -234,7 +234,7 @@ print (output_string)
 print ("------------------")
 print (output_string2)
 print ("------------------")
-# print (output_string3)
+print (output_string3)
 
 
 
