@@ -101,3 +101,4 @@ ENV/
 
 # VS code files
 .DS_Store
+.vscode/
