@@ -107,7 +107,7 @@ class State(object):
             self.size_graph_edges = 0
             for node in default_edges:
                 self.size_graph_edges += len(node)
-            self.size_graph_edges = self.size_graph_edges / 2
+            self.size_graph_edges = self.size_graph_edges // 2
 
         # create new weights for the graph
         self.graph_weights = np.zeros(self.size_graph, dtype=np.int)
@@ -144,8 +144,8 @@ class State(object):
 
         # reset the service statuses
         if default_input is None:
-            num_nodes_up = (self.size_graph * self.config.ratios[0]) / np.sum(self.config.ratios)
-            num_nodes_down = (self.size_graph * self.config.ratios[1]) / np.sum(self.config.ratios)
+            num_nodes_up = (self.size_graph * self.config.ratios[0]) // np.sum(self.config.ratios)
+            num_nodes_down = (self.size_graph * self.config.ratios[1]) // np.sum(self.config.ratios)
             num_nodes_unavailable = self.size_graph - (num_nodes_down + num_nodes_up)
             self.nn_input = np.concatenate([np.zeros(num_nodes_down, dtype=np.int),
                                             np.ones(num_nodes_up, dtype=np.int),
@@ -306,14 +306,14 @@ class State(object):
 
         # f_1: sum of weights for connected services
         if def_action != -1 and def_action % self.size_graph_cols < self.size_graph_col1:
-            for connected_node in self.graph_edges[int(def_action / self.size_graph_cols)]:
+            for connected_node in self.graph_edges[def_action // self.size_graph_cols]:
                 id2 = (connected_node * self.size_graph_cols) + (def_action % self.size_graph_cols)
                 if self.nn_input[id2] == 1:
                     self.score_now[0] += self.graph_weights[def_action]
                     self.score_now[0] += self.graph_weights[id2]
 
         if att_action != -1 and att_action % self.size_graph_cols < self.size_graph_col1:
-            for connected_node in self.graph_edges[int(att_action / self.size_graph_cols)]:
+            for connected_node in self.graph_edges[att_action // self.size_graph_cols]:
                 id2 = (connected_node * self.size_graph_cols) + (att_action % self.size_graph_cols)
                 if self.nn_input[id2] == 1 and id2 != def_action:
                     self.score_now[0] -= self.graph_weights[att_action]

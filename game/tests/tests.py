@@ -29,16 +29,16 @@ test_case2 = TestStateReader()
 # Read the graph
 # test_case1.state = test_case2.read_state()
 test_case1.print_graph()
-print test_case1.state.graph_edges
+print (test_case1.state.graph_edges)
 
 start_time = time.time()
 
 # make a move
-print "Possible attack actions: {}".format(np.sum(test_case1.state.actions_att))
-print "Possible defence actions: {}".format(np.sum(test_case1.state.actions_def))
+print ("Possible attack actions: {}".format(np.sum(test_case1.state.actions_att)))
+print ("Possible defence actions: {}".format(np.sum(test_case1.state.actions_def)))
 # test_case1.test_make_move()
-# print "Possible attack actions: {}".format(np.sum(test_case1.state.actions_att))
-# print "Possible defence actions: {}".format(np.sum(test_case1.state.actions_def))
+# print ("Possible attack actions: {}".format(np.sum(test_case1.state.actions_att)))
+# print ("Possible defence actions: {}".format(np.sum(test_case1.state.actions_def)))
 
 print ("--- Generate: %s seconds ---" % (time.time() - start_time))
 # test_case1.print_graph()
