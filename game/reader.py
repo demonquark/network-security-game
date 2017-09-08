@@ -22,7 +22,7 @@ class StateReader(object):
             file_name = self.default_file_name
 
         # write to the defined config file
-        with open(file_name, 'wb') as csvfile:
+        with open(file_name, 'w') as csvfile:
             writer = csv.writer(csvfile, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
             writer.writerow([state.config.num_service])
             writer.writerow([state.config.num_viruses])
@@ -60,7 +60,7 @@ class StateReader(object):
             file_name = self.default_file_name
 
         # read from the defined config file
-        with open(file_name, 'rb') as csvfile:
+        with open(file_name, 'r') as csvfile:
             reader = csv.reader(csvfile, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
             content = list(reader)
 
@@ -91,7 +91,7 @@ class StateReader(object):
             state = State(config, default_input, default_edges, default_graph_weights)
 
         else:
-            print "Could not read config file."
+            print ("Could not read config file.")
 
         return state
 

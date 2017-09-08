@@ -67,7 +67,9 @@ def calculate_offset(file_name=None):
             score = np.subtract(input_state.get_score(), [0, 0, score_old[2]])
             min_score = np.minimum(min_score, score) if steps > 0 else score
             max_score = np.maximum(max_score, score) if steps > 0 else score
-            range_max = np.maximum(range_max, score) if steps > 0 else score
+            range_max = np.maximum(range_max, score) if i > 0 else score
+
+            # print ("{3}) {0} {1} {2} {4} {5}".format(min_score, max_score, range_max, steps, score_old, score))
 
             # next step
             steps += 1
@@ -79,23 +81,26 @@ def calculate_offset(file_name=None):
     # calculate the average offset
     offset = np.divide(min_score_sum, times_to_run) - np.divide(offset, times_to_run)
     offset = np.maximum(offset, np.zeros(3, dtype=np.int)) 
+    # print ("--------")
+    # print ("normalizer: {0} ".format(range_max))
+    # print ("offset: {0} ".format(offset))
     range_max = np.maximum(range_max - offset, np.zeros(3, dtype=np.int))
 
     # return the offset
     return offset, range_max
 
 def print_graph(s_out):
-    print s_out.get_graph()
-    print s_out.get_weight()
-    print "Nodes: {}, Services: {}, Viruses: {}, Datadir: {}, Edges: {}".format(s_out.config.num_nodes, s_out.config.num_service, 
-                                                                                s_out.config.num_viruses, s_out.config.num_datadir, s_out.size_graph_edges)
-    print "Cost Attack: {}, Cost Defense: {}".format(s_out.att_cost, s_out.def_cost)
-    print "Game points: {}, {} | State score: {} -> {} | Maintenance: {}".format(s_out.get_points(False), s_out.get_points(True), 
-                                                                        s_out.score_old, s_out.get_score(), s_out.maintenance_cost)
-    print "---------"
+    print (s_out.get_graph())
+    print (s_out.get_weight())
+    print ("Nodes: {}, Services: {}, Viruses: {}, Datadir: {}, Edges: {}".format(s_out.config.num_nodes, s_out.config.num_service, 
+                                                                                s_out.config.num_viruses, s_out.config.num_datadir, s_out.size_graph_edges))
+    print ("Cost Attack: {}, Cost Defense: {}".format(s_out.att_cost, s_out.def_cost))
+    print ("Game points: {}, {} | State score: {} -> {} | Maintenance: {}".format(s_out.get_points(False), s_out.get_points(True), 
+                                                                        s_out.score_old, s_out.get_score(), s_out.maintenance_cost))
+    print ("---------")
 
 # variables
-epochs = 1500
+epochs = 50
 gamma = 0.1 # since immediate rewards are more important keep gamma low
 epsilon = 0
 steps = 0
@@ -103,29 +108,36 @@ reward_sum = 0
 avg_sum = 0
 output_string = "\n"
 output_string2 = "\n"
+output_string3 = "\n"
+
 
 # Configuration
 config = Config()
 config.num_service = 3
 config.num_viruses = 1
 config.num_datadir = 1
-config.num_nodes = 250
+config.num_nodes = 6
 config.sparcity = 0.1
-config.att_points = 100
-config.def_points = 100
+config.att_points = 200
+config.def_points = 200
 config.offset = np.zeros(3, dtype=np.int)
+check_one = np.zeros(3, dtype=float)
+check_two = np.zeros(3, dtype=float)
+check_three = np.zeros(3, dtype=float)
+config.scalarization = np.array([0, 0, 10], dtype=np.int)
 
-# state = State(config)
-# reader.write_state(state)
+
+reader = StateReader()
+state = State(config)
+reader.write_state(state)
 
 # read an existing state
-reader = StateReader()
 state = reader.read_state()
 
 final_offset, normalizer = calculate_offset()
 
-print final_offset
-print normalizer
+print (final_offset)
+print (normalizer)
 
 # create the DQN
 model = create_model(state)
@@ -136,7 +148,7 @@ start_time = time.time()
 for i in range(epochs):
 
     # reset game for the next epoch
-    epsilon = (1 - (i * 1. / epochs)) if i < (epochs * 3 / 5)  else 0.2
+    epsilon = (1 - (i / epochs)) if i < (epochs * 3 / 5)  else 0.2
     steps = 0
     reward_sum = 0
     score_float = np.zeros(3, dtype=float)
@@ -165,6 +177,8 @@ for i in range(epochs):
             if state.actions_att[action_att] == 1:
                 break
 
+        action_def = state.size_graph
+
         # Take actions, observe new state
         np.copyto(nn_input_old, state.nn_input)
         state.make_move(action_att, action_def)
@@ -173,16 +187,23 @@ for i in range(epochs):
         score_now = state.get_score(True)
         score_old = state.get_score(False)
         score = np.subtract(state.get_score(), [0, 0, score_old[2]])
+        np.copyto(check_one, score)
         vector_reward_sum += score
         score = np.subtract(score, final_offset)
+        np.copyto(check_two, score)
         np.copyto(score_float, score)
         score_float = np.divide(score_float, normalizer)
         score_float = np.multiply(score_float, 100)
+        np.copyto(check_three, score_float)
         reward = np.dot(state.config.scalarization, score_float) / np.sum(state.config.scalarization)
+
+        # output_string3 += ("{0}) {1} : {2} {3} {4} ".format(steps, action_def, check_one.astype(int), check_two.astype(int), check_three.astype(int)))
+        # output_string3 += ("{0} {1} {2} \n".format(score_float.astype(int), state.config.scalarization, reward))
 
         # Get max_Q(S',a)
         q_table_new_state = model.predict(state.nn_input.reshape(1, state.nn_input.size), batch_size=1)
         maxQ = np.max(q_table_new_state)
+        # output_string3 += ("{0!r} \n".format((q_table_new_state.astype(int)).tolist()))
 
         # update the q_table
         update = (reward + (gamma * maxQ))
@@ -192,11 +213,12 @@ for i in range(epochs):
         # move to the next state
         reward_sum += reward
         steps += 1
+        output_string3 += ("{} \n".format(reward_sum)
 
     # output the data
     if (i % (epochs / 100)) == 0:
-        output_string += "{0}\n".format(int(avg_sum / (epochs * 1. / 100)))
-        output_string2 += "{0!r}\n".format(np.divide(vector_reward_sum, 10).tolist())
+        output_string += "{0}\n".format(int((avg_sum * 100) / epochs))
+        output_string2 += "{0!r}\n".format(np.divide(vector_reward_sum, 10).astype(int).tolist())
         avg_sum = 0
     else:
         avg_sum += reward_sum
@@ -208,9 +230,11 @@ for i in range(epochs):
 
 
 print ("--- %s seconds ---" % (time.time() - start_time))
-print output_string
-print "------------------"
-print output_string2
+print (output_string)
+print ("------------------")
+print (output_string2)
+print ("------------------")
+# print (output_string3)
 
 
 
