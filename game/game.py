@@ -6,7 +6,7 @@ import numpy as np
 import tensorflow as tf
 from state import Config, State
 from reader import StateReader
-from pareto import prep_pareto_efficient
+from pareto import prep_pareto_efficient #pareto function
 
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Activation
