@@ -5,6 +5,8 @@ import time
 import numpy as np
 from state import Config, State
 from reader import StateReader
+from pareto import prep_pareto_efficient
+
 
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Activation
@@ -98,143 +100,143 @@ def print_graph(s_out):
     print ("Game points: {}, {} | State score: {} -> {} | Maintenance: {}".format(s_out.get_points(False), s_out.get_points(True), 
                                                                         s_out.score_old, s_out.get_score(), s_out.maintenance_cost))
     print ("---------")
+    
 
+def run_game():
 
-def run_game()
-
-# variables
-epochs = 50
-gamma = 0.1 # since immediate rewards are more important keep gamma low
-epsilon = 0
-steps = 0
-reward_sum = 0
-avg_sum = 0
-output_string = "\n"
-output_string2 = "\n"
-output_string3 = "\n"
-
-	
-
-# Configuration
-config = Config()
-config.num_service = 3
-config.num_viruses = 1
-config.num_datadir = 1
-config.num_nodes = 6
-config.sparcity = 0.1
-config.att_points = 200
-config.def_points = 200
-config.offset = np.zeros(3, dtype=np.int)
-check_one = np.zeros(3, dtype=float)
-check_two = np.zeros(3, dtype=float)
-check_three = np.zeros(3, dtype=float)
-config.scalarization = np.array([0, 0, 10], dtype=np.int)
-
-
-reader = StateReader()
-state = State(config)
-reader.write_state(state)
-
-# read an existing state
-state = reader.read_state()
-
-final_offset, normalizer = calculate_offset()
-
-print (final_offset)
-print (normalizer)
-
-# create the DQN
-model = create_model(state)
-
-# run the experiment
-start_time = time.time()
-
-for i in range(epochs):
-
-    # reset game for the next epoch
-    epsilon = (1 - (i / epochs)) if i < (epochs * 3 / 5)  else 0.2
+    # variables
+    epochs = 50
+    gamma = 0.1 # since immediate rewards are more important keep gamma low
+    epsilon = 0
     steps = 0
     reward_sum = 0
-    score_float = np.zeros(3, dtype=float)
-    vector_reward_sum = np.zeros(3, dtype=np.int)
+    avg_sum = 0
+    output_string = "\n"
+    output_string2 = "\n"
+    output_string3 = "\n"
+
+            
+
+    # Configuration
+    config = Config()
+    config.num_service = 3
+    config.num_viruses = 1
+    config.num_datadir = 1
+    config.num_nodes = 6
+    config.sparcity = 0.1
+    config.att_points = 200
+    config.def_points = 200
+    config.offset = np.zeros(3, dtype=np.int)
+    check_one = np.zeros(3, dtype=float)
+    check_two = np.zeros(3, dtype=float)
+    check_three = np.zeros(3, dtype=float)
+    config.scalarization = np.array([0, 0, 10], dtype=np.int)
+
+
+    reader = StateReader()
+    state = State(config)
+    reader.write_state(state)
+
+    # read an existing state
     state = reader.read_state()
-    nn_input_old = np.zeros(state.size_graph + 2, dtype=np.int) # +2 for the game points
-    y = np.zeros((1, state.size_graph+1))
 
-    # run the game
-    while state.get_points(True) > 0 and state.get_points(False) > 0 and steps < 200:
-        # find the Q-values for the state-action pairs
-        q_table = model.predict(state.nn_input.reshape(1, state.nn_input.size), batch_size=1)
+    final_offset, normalizer = calculate_offset()
 
-        # choose a defense action
-        if random.random() < epsilon: # random action
+    print (final_offset)
+    print (normalizer)
+
+    # create the DQN
+    model = create_model(state)
+
+    # run the experiment
+    start_time = time.time()
+
+    for i in range(epochs):
+
+        # reset game for the next epoch
+        epsilon = (1 - (i / epochs)) if i < (epochs * 3 / 5)  else 0.2
+        steps = 0
+        reward_sum = 0
+        score_float = np.zeros(3, dtype=float)
+        vector_reward_sum = np.zeros(3, dtype=np.int)
+        state = reader.read_state()
+        nn_input_old = np.zeros(state.size_graph + 2, dtype=np.int) # +2 for the game points
+        y = np.zeros((1, state.size_graph+1))
+
+        # run the game
+        while state.get_points(True) > 0 and state.get_points(False) > 0 and steps < 200:
+            # find the Q-values for the state-action pairs
+            q_table = model.predict(state.nn_input.reshape(1, state.nn_input.size), batch_size=1)
+
+            # choose a defense action
+            if random.random() < epsilon: # random action
+                for j in range(100):
+                    action_def = np.random.randint(0, state.size_graph)
+                    if state.actions_def[action_def] == 1:
+                        break
+            else: # from Q(s,a) values
+                action_def = np.argmax(np.multiply(state.actions_def, q_table[0] - min(q_table[0])))
+
+            # choose an attack action
             for j in range(100):
-                action_def = np.random.randint(0, state.size_graph)
-                if state.actions_def[action_def] == 1:
+                action_att = np.random.randint(0, state.size_graph)
+                if state.actions_att[action_att] == 1:
                     break
-        else: # from Q(s,a) values
-            action_def = np.argmax(np.multiply(state.actions_def, q_table[0] - min(q_table[0])))
 
-        # choose an attack action
-        for j in range(100):
-            action_att = np.random.randint(0, state.size_graph)
-            if state.actions_att[action_att] == 1:
-                break
+            # Take actions, observe new state
+            np.copyto(nn_input_old, state.nn_input)
+            state.make_move(action_att, action_def)
 
-        # Take actions, observe new state
-        np.copyto(nn_input_old, state.nn_input)
-        state.make_move(action_att, action_def)
+            # Observe reward
+            score_now = state.get_score(True)
+            score_old = state.get_score(False)
+            score = np.subtract(state.get_score(), [0, 0, score_old[2]])
+            np.copyto(check_one, score)
+            vector_reward_sum += score
+            score = np.subtract(score, final_offset)
+            np.copyto(check_two, score)
+            np.copyto(score_float, score)
+            score_float = np.divide(score_float, normalizer)
+            score_float = np.multiply(score_float, 100)
+            np.copyto(check_three, score_float)
+            reward = np.dot(state.config.scalarization, score_float) / np.sum(state.config.scalarization)
 
-        # Observe reward
-        score_now = state.get_score(True)
-        score_old = state.get_score(False)
-        score = np.subtract(state.get_score(), [0, 0, score_old[2]])
-        np.copyto(check_one, score)
-        vector_reward_sum += score
-        score = np.subtract(score, final_offset)
-        np.copyto(check_two, score)
-        np.copyto(score_float, score)
-        score_float = np.divide(score_float, normalizer)
-        score_float = np.multiply(score_float, 100)
-        np.copyto(check_three, score_float)
-        reward = np.dot(state.config.scalarization, score_float) / np.sum(state.config.scalarization)
+            output_string3 += ("{0}) {1} : {2} {3} {4} ".format(steps, action_def, check_one.astype(int), check_two.astype(int), check_three.astype(int)))
+            output_string3 += ("{0} {1} {2} \n".format(score_float.astype(int), state.config.scalarization, reward))
 
-        output_string3 += ("{0}) {1} : {2} {3} {4} ".format(steps, action_def, check_one.astype(int), check_two.astype(int), check_three.astype(int)))
-        output_string3 += ("{0} {1} {2} \n".format(score_float.astype(int), state.config.scalarization, reward))
+            # Get max_Q(S',a)
+            q_table_new_state = model.predict(state.nn_input.reshape(1, state.nn_input.size), batch_size=1)
+            maxQ = np.max(q_table_new_state)
+            # output_string3 += ("{0!r} \n".format((q_table_new_state.astype(int)).tolist()))
 
-        # Get max_Q(S',a)
-        q_table_new_state = model.predict(state.nn_input.reshape(1, state.nn_input.size), batch_size=1)
-        maxQ = np.max(q_table_new_state)
-        # output_string3 += ("{0!r} \n".format((q_table_new_state.astype(int)).tolist()))
+            # update the q_table
+            update = (reward + (gamma * maxQ))
+            q_table[0][action_def] =update
+            model.fit(nn_input_old.reshape(1, state.nn_input.size), q_table, batch_size=1, epochs=1, verbose=0)
 
-        # update the q_table
-        update = (reward + (gamma * maxQ))
-        q_table[0][action_def] =update
-        model.fit(nn_input_old.reshape(1, state.nn_input.size), q_table, batch_size=1, epochs=1, verbose=0)
+            # move to the next state
+            reward_sum += reward
+            steps += 1
 
-        # move to the next state
-        reward_sum += reward
-        steps += 1
-
-    # output the data
-    avg_sum += reward_sum
-    if (i % (epochs / 100)) == 0:
-        output_string += "{0}\n".format(int((avg_sum * 100) / epochs))
-        output_string2 += "{0!r}\n".format(np.divide(vector_reward_sum, 10).astype(int).tolist())
-        avg_sum = 0
-    
-    # output_string += "{0}) {1} | {2}: {3!r}\n".format(i,
-    #                                         int(reward_sum),
-    #                                         np.argmax(q_table[0] - min(q_table[0])),
-    #                                         np.array(q_table[0], dtype=np.int).tolist())
+        # output the data
+        avg_sum += reward_sum
+        if (i % (epochs / 100)) == 0:
+            output_string += "{0}\n".format(int((avg_sum * 100) / epochs))
+            output_string2 += "{0!r}\n".format(np.divide(vector_reward_sum, 10).astype(int).tolist())
+            avg_sum = 0
+        
+        # output_string += "{0}) {1} | {2}: {3!r}\n".format(i,
+        #                                         int(reward_sum),
+        #                                         np.argmax(q_table[0] - min(q_table[0])),
+        #                                         np.array(q_table[0], dtype=np.int).tolist())
 
 
-print ("--- %s seconds ---" % (time.time() - start_time))
-print (output_string)
-print ("------------------")
-print (output_string2)
-print ("------------------")
-print (output_string3)
+    print ("--- %s seconds ---" % (time.time() - start_time))
+    print (output_string)
+    print ("------------------")
+    print (output_string2)
+    print ("------------------")
+    print (output_string3)
 
 
 

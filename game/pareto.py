@@ -79,21 +79,21 @@ def prep_pareto_efficient(defenceActions): #input is a numpy array of attacks fo
 
 
 import random
-bstart_time = time.time()
-while True:
-    testDef = []
-    for x in range(10):
-        testDef.append(np.array([[random.randint(70,100) for i in range(3)] for j in range(10)]))
-    print(testDef[0])
+#bstart_time = time.time()
+#while True:
+#    testDef = []
+#    for x in range(10):
+#        testDef.append(np.array([[random.randint(70,100) for i in range(3)] for j in range(10)]))
+#    print(testDef[0])
         
 
-    start_time = time.time()
+#    start_time = time.time()
 
-    pp = prep_pareto_efficient(testDef)
+#    pp = prep_pareto_efficient(testDef)
 
-    print(pp)
-    if len(pp) < 10:
-        print ("--big-loop- %s seconds ---" % (time.time() - bstart_time))
-        break
+#    print(pp)
+#    if len(pp) < 10:
+#        print ("--big-loop- %s seconds ---" % (time.time() - bstart_time))
+#        break
 
-    print ("--- %s seconds ---" % (time.time() - start_time))
+#    print ("--- %s seconds ---" % (time.time() - start_time))
