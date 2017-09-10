@@ -132,6 +132,16 @@ def calculate_max(array_containing_max):
             break
     return chosen_index
 
+=======
+
+    random_index = random.random()
+    for j in range(5):
+        if random_index < (max_values[j] / max_values[4]):
+            chosen_index = choices[j]
+            break
+    return chosen_index
+
+>>>>>>> 875a72dc97b3d24752dd20f793a5ff96702e3f52
 
 def run_game(epsilon, reader, model, log_object, single_action=False, default_action=0):
     # reset game for the next epoch
@@ -221,6 +231,93 @@ def run_game(epsilon, reader, model, log_object, single_action=False, default_ac
     log_object.step_count = steps
     return log_object
 
+=======
+
+        # output some data
+        # if single_action:
+        #     log_object.output_string2 += ("{0}) {1} : {2} {3} {4} {5} \n".format(steps, action_def,
+        #                                     check_one.astype(int),
+        #                                     check_two.astype(int),
+        #                                     check_three.astype(int), int(reward)))
+        #     log_object.output_string2 += ("{0}) {1} : {2!r} \n".format(steps, action_def, q_table.astype(int).tolist()))
+        #     q_table = model.predict(nn_input_old.reshape(1, state.nn_input.size), batch_size=1)
+        #     log_object.output_string2 += ("{0}) {1} : {2!r} \n".format(steps, action_def, q_table.astype(int).tolist()))
+
+    log_object.reward_sum = reward_sum
+    log_object.vector_reward_sum = vector_reward_sum
+    log_object.step_count = steps
+    log_object.step_count = steps
+    return log_object
+
+
+#------- START MAIN CODE --------
+
+# Configuration
+config = Config()
+config.num_service = 3
+config.num_viruses = 1
+config.num_datadir = 1
+config.num_nodes = 50
+config.sparcity = 0.1
+config.att_points = 500
+config.def_points = 100
+config.offset = np.zeros(3, dtype=np.int)
+check_one = np.zeros(3, dtype=float)
+check_two = np.zeros(3, dtype=float)
+check_three = np.zeros(3, dtype=float)
+# config.scalarization = np.array([0, 0, 10], dtype=np.int)
+
+# experiment variables
+epochs = 500
+log_object = LogObject()
+avg_sum = 0
+avg_vector_sum = np.zeros(3, dtype=np.int)
+
+# read and write existing state
+reader = StateReader()
+state = State(config)
+reader.write_state(state)
+state = reader.read_state()
+final_offset, normalizer = calculate_offset()
+
+# create the DQN
+model = create_model(state)
+
+# run the experiment
+start_time = time.time()
+
+for i in range(state.size_graph + 1):
+
+    # go through every action
+    log_object = run_game(0, reader, model, log_object, True,state.size_graph - i)
+
+    # save the output data
+    # log_object.output_string += "{0}) {1} {2:03d}, {3!r}\n".format(log_object.step_count, log_object.chosen_action,
+    #                             int(log_object.reward_sum), log_object.vector_reward_sum.astype(int).tolist())
+
+
+for i in range(epochs):
+
+    # reset game for the next epoch
+    epsilon = (1 - (i / epochs)) if i < (epochs * 3 / 5)  else 0.2
+    log_object = run_game(epsilon, reader, model, log_object)
+
+    # save the output data
+    avg_sum += log_object.reward_sum
+    avg_vector_sum += log_object.vector_reward_sum
+    if (i % (epochs / 100)) == 0:
+        log_object.output_string += "{0}\n".format(int((avg_sum * 100) / epochs))
+        log_object.output_string2 += "{0!r} : ({1}) {2} \n".format(np.divide(log_object.vector_reward_sum * 100, epochs).astype(int).tolist(),
+                                    log_object.step_count, log_object.chosen_action)
+        avg_vector_sum = np.zeros(3, dtype=np.int)
+        avg_sum = 0
+
+# output the data
+print ("--- %s seconds ---" % (time.time() - start_time))
+print (log_object.output_string)
+print ("------------------")
+print (log_object.output_string2)
+>>>>>>> 875a72dc97b3d24752dd20f793a5ff96702e3f52
 
 #------- START MAIN CODE --------
 
