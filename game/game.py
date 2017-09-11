@@ -101,16 +101,6 @@ def calculate_offset(file_name=None):
     # return the offset
     return offset, range_max
 
-def print_graph(s_out):
-    print (s_out.get_graph())
-    print (s_out.get_weight())
-    print ("Nodes: {}, Services: {}, Viruses: {}, Datadir: {}, Edges: {}".format(s_out.config.num_nodes, s_out.config.num_service, 
-                                                                                s_out.config.num_viruses, s_out.config.num_datadir, s_out.size_graph_edges))
-    print ("Cost Attack: {}, Cost Defense: {}".format(s_out.att_cost, s_out.def_cost))
-    print ("Game points: {}, {} | State score: {} -> {} | Maintenance: {}".format(s_out.get_points(False), s_out.get_points(True), 
-                                                                        s_out.score_old, s_out.get_score(), s_out.maintenance_cost))
-    print ("---------")
-
 def calculate_max(array_containing_max):
     """Pick a number from the highest 5 values"""
     
@@ -129,7 +119,6 @@ def calculate_max(array_containing_max):
             chosen_index = choices[j]
             break
     return chosen_index
-
 
 def run_game(epsilon, reader, model, log_object, single_action=False, default_action=0):
     # reset game for the next epoch
@@ -227,10 +216,10 @@ config = Config()
 config.num_service = 3
 config.num_viruses = 1
 config.num_datadir = 1
-config.num_nodes = 500
+config.num_nodes = 50
 config.sparcity = 0.05
-config.att_points = 3000
-config.def_points = 3000
+config.att_points = 200
+config.def_points = 200
 config.offset = np.zeros(3, dtype=np.int)
 check_one = np.zeros(3, dtype=float)
 check_two = np.zeros(3, dtype=float)
@@ -251,7 +240,7 @@ state = reader.read_state()
 final_offset, normalizer = calculate_offset()
 
 # create the DQN
-model = create_model(state, 600, 400)
+model = create_model(state)
 
 # run the experiment
 start_time = time.time()

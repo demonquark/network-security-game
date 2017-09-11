@@ -10,10 +10,10 @@ import numpy as np
 class Config(object):
     """Define the configuration of the game"""
     # define graph
-    num_service = 3
-    num_viruses = 1
-    num_datadir = 1
-    num_nodes = 8
+    num_service = 4
+    num_viruses = 2
+    num_datadir = 3
+    num_nodes = 100
 
     sparcity = 0.01
     server_client_ratio = 0.2
@@ -69,8 +69,8 @@ class State(object):
 
         # neural network variables
         self.nn_input = np.zeros(self.size_graph + 2, dtype=np.int) # +2 for the game points
-        self.actions_def = np.ones(self.size_graph + 1, dtype=np.int) # +1 for do nothing
-        self.actions_att = np.ones(self.size_graph + 1, dtype=np.int) # +1 for do nothing
+        self.actions_def = np.ones(self.size_graph + 1, dtype=bool) # +1 for do nothing
+        self.actions_att = np.ones(self.size_graph + 1, dtype=bool) # +1 for do nothing
         self.generate_graph(default_input, default_edges, default_graph_weights)
 
     def generate_graph(self, default_input=None, default_edges=None, default_graph_weights=None):
@@ -198,7 +198,7 @@ class State(object):
     def reset_game_points(self):
         """Reset the game point in the input"""
         self.nn_input[-2] = self.config.att_points
-        self.nn_input[-1] = self.config.def_points        
+        self.nn_input[-1] = self.config.def_points
 
     def reset_actions(self):
         """Get an array showing the valid actions"""
@@ -366,6 +366,14 @@ class State(object):
             if self.nn_input[-1] < self.def_cost[i]:
                 self.actions_def[i:self.size_graph:self.size_graph_cols] = 0
 
+    def __pareto_front(self, scores, actions):
+        """return: A get a boolean array, indicating whether each point is Pareto efficient"""
+
+        for i in range(self.size_graph + 1):
+            if actions[i]:
+                actions[i] = np.any(scores[actions] >= scores[i]) # Remove dominated points
+        return actions
+
 
     def get_actions(self, defender=True):
         """Get a 2D representation of the graph"""
@@ -389,3 +397,13 @@ class State(object):
     def get_score(self, current=True):
         """Get the score of the current state"""
         return self.score_now if current else self.score_old
+
+    def print_graph(self):
+        print (self.get_graph())
+        print (self.get_weight())
+        print ("Nodes: {}, Services: {}, Viruses: {}, Datadir: {}, Edges: {}".format(self.config.num_nodes, self.config.num_service, 
+                                                                                    self.config.num_viruses, self.config.num_datadir, self.size_graph_edges))
+        print ("Cost Attack: {}, Cost Defense: {}".format(self.att_cost, self.def_cost))
+        print ("Game points: {}, {} | State score: {} -> {} | Maintenance: {}".format(self.get_points(False), self.get_points(True), 
+                                                                            self.score_old, self.get_score(), self.maintenance_cost))
+        print ("---------")
