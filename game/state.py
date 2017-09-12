@@ -366,13 +366,46 @@ class State(object):
             if self.nn_input[-1] < self.def_cost[i]:
                 self.actions_def[i:self.size_graph:self.size_graph_cols] = 0
 
-    def __pareto_front(self, scores, actions):
-        """return: A get a boolean array, indicating whether each point is Pareto efficient"""
+    def __pareto_defense_actions(self, scores):
+        """return: A boolean array with the Pareto efficient defences"""
 
-        for i in range(self.size_graph + 1):
-            if actions[i]:
-                actions[i] = np.any(scores[actions] >= scores[i]) # Remove dominated points
-        return actions
+        # get the pareto fronts
+        pareto_fronts = np.array([score[self.__pareto_front(score)] for score in scores])
+
+        # assume that all the fronts are efficient
+        is_efficient = np.ones(pareto_fronts.shape[0], dtype=bool)
+        size_fronts = len(pareto_fronts)
+        for i in range(size_fronts):
+
+            defense_row = pareto_fronts[i]
+            max_reward = np.max(defense_row, axis=0)
+            is_efficient[i] = False
+            really_false = False
+            for other_row in pareto_fronts[is_efficient]:
+                if np.any(other_row[np.all(other_row >= max_reward, axis=1)] > max_reward):
+                    really_false = True
+                    break
+
+            if not really_false:
+                is_efficient[i] = True
+
+        return is_efficient
+
+
+    def __pareto_front(self, scores, maximize=False):
+        """return: A boolean array, indicating whether each point is part of a Pareto front"""
+
+        # Assume that all the points are in the front
+        costs_len = len(scores)
+        in_front = np.ones(costs_len, dtype=bool)
+
+        # for each point in the front, check if it is dominated by another point
+        for i in range(costs_len):
+            if in_front[i]:
+                in_front[i] = False
+                # A point is in the front if none/not-any of the other scores is objectively better
+                in_front[i] = not np.any(np.all(scores[i] >= scores[in_front], axis=1))
+        return in_front
 
 
     def get_actions(self, defender=True):
