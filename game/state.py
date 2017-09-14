@@ -179,7 +179,6 @@ class State(object):
                     for i in range(0, self.size_graph_col1):
                         id1 = (node * self.size_graph_cols) + i
                         id2 = (connected_node * self.size_graph_cols) + i
-                        print ("a: ({}, {}) {} {}".format(id1, id2, self.nn_input[id1] == 1, self.nn_input[id2] == 1))
                         if self.nn_input[id1] == 1 and self.nn_input[id2] == 1:
                             self.score_now[0] += self.graph_weights[id1]
                             self.score_now[0] += self.graph_weights[id2]
@@ -412,8 +411,24 @@ class State(object):
     def pareto_defense_actions(self):
         """return: A boolean array with the Pareto efficient defences"""
 
-        # get the pareto fronts
-        pareto_fronts = np.array([self.pareto_front(score) for score in scores[self.actions_def]])
+        # get the indices of the valid defenses
+        indices = np.zeros(self.size_graph + 1, np.int)
+        for i in range(self.size_graph + 1):
+            indices[i] = i
+        indices = indices[self.actions_def]
+
+        # get the reward matrix
+        scores = self.__reset_reward_matrix()
+        scores = scores[self.actions_def]
+        truncated_scores = []
+        for i, j in enumerate(scores):
+            truncated_scores.append(np.unique(j[self.actions_att], axis=0))
+
+        # calculate the pareto fronts
+        pareto_fronts = np.array([self.pareto_front(score) for score in truncated_scores])
+
+        print ("{} {} {}".format(len(self.actions_def), len(indices), len(truncated_scores)))
+        print (self.actions_def.astype(np.int))
 
         # assume that all the fronts are efficient
         start_time = time.time()
@@ -432,9 +447,12 @@ class State(object):
 
             if not really_false:
                 is_efficient[i] = True
+        print (indices)
+        print (is_efficient.astype(np.int))
         print ("--- internal calc %s seconds ---" % (time.time() - start_time))
 
-        return is_efficient
+
+        # return is_efficient
 
 
     def pareto_front(self, scores, maximize=False):
@@ -443,7 +461,6 @@ class State(object):
         # Assume that all the points are in the front
         costs_len = len(scores)
         in_front = np.ones(costs_len, dtype=bool)
-        np.copyto(in_front, self.actions_att)
 
         # for each point in the front, check if it is dominated by another point
         for i in range(costs_len):
@@ -451,7 +468,9 @@ class State(object):
                 in_front[i] = False
                 # A point is in the front if none/not-any of the other scores is objectively better
                 in_front[i] = not np.any(np.all(scores[i] >= scores[in_front], axis=1))
-        return in_front
+
+        print ("lengths: {} {}".format(len(scores), len(scores[in_front])))
+        return scores[in_front]
 
 
     def get_actions(self, defender=True):

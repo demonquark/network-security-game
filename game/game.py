@@ -222,7 +222,7 @@ config = Config()
 config.num_service = 3
 config.num_viruses = 2
 config.num_datadir = 1
-config.num_nodes = 5
+config.num_nodes = 100
 config.sparcity = 0.1
 config.att_points = 100
 config.def_points = 100
@@ -292,81 +292,6 @@ print ("------------------")
 
 
 
-state = reader.read_state()
 start_time = time.time()
-# f_3 calculate the difference in game points reward
-cost_attack = np.append(([state.att_cost for i in range(state.size_graph_rows)]),0)
-cost_defense = np.append(([state.def_cost for i in range(state.size_graph_rows)]),0)
-cost_reward = np.array([np.add(cost_attack, state.maintenance_cost - value)
-                        for i, value in enumerate(cost_defense)])
-
-# f_2 calculate the data reward
-data_move = np.append(([np.append(np.zeros(state.size_graph_col1, dtype=np.int),
-                                  np.ones(state.size_graph_cols - state.size_graph_col1,
-                                          dtype=np.int)) for i in range(state.size_graph_rows)]), 0)
-data_move = np.multiply(data_move, np.append(state.graph_weights, 0))
-data_reward = np.array([np.subtract(value + state.score_now[1], data_move) for i, value in enumerate(data_move)])
-
-# f_1 calculate the services reward
-serv_move = np.zeros(state.size_graph + 1, dtype=np.int)
-for i in range(state.size_graph):
-    # f_1: sum of weights for connected services
-    if i % state.size_graph_cols < state.size_graph_col1:
-        for connected_node in state.graph_edges[i // state.size_graph_cols]:
-            id2 = (connected_node * state.size_graph_cols) + (i % state.size_graph_cols)
-            if state.nn_input[id2] == 1:
-                serv_move[i] += state.graph_weights[i] + state.graph_weights[id2]
-
-serv_overlap = np.array([np.zeros(state.size_graph + 1, dtype=np.int) for i in range(state.size_graph + 1)])
-for i, i_val in enumerate(state.graph_edges):
-    print(i_val)
-    for j, j_val in enumerate(i_val):
-        for k in range(state.size_graph_col1):
-            d_index = i * state.size_graph_cols + k
-            a_index = j_val * state.size_graph_cols + k
-            serv_overlap[d_index][a_index] = state.graph_weights[d_index] + state.graph_weights[a_index]
-
-serv_reward = np.subtract(np.array([np.subtract(value + state.score_now[0], serv_move) for i, value in enumerate(serv_move)]), serv_overlap)
-
-output_reward = np.stack((serv_reward, data_reward, cost_reward), axis=-1)
-
+efficient_rewards = state.pareto_defense_actions()
 print ("--- reward calc %s seconds ---" % (time.time() - start_time))
-# print (cost_attack)
-# print (cost_defense)
-# print (data_move)
-print (serv_overlap[0])
-# print (serv_overlap[1])
-# print (serv_overlap[2])
-# print (serv_overlap[3])
-
-# print (serv_reward[0])
-# print (data_reward[0])
-# print (cost_reward[0])
-
-print (serv_reward[0])
-print (output_reward[0])
-
-# output_filter = np.zeros(state.size_graph + 1, dtype=bool)
-# output_filter[0] = True
-# output_filter[1] = True
-# output_filter[4] = True
-# output_filter[12] = True
-# output_filter[9] = True
-
-
-# x = 0
-# for single_reward_set in output_reward:
-#     x += 1
-#     start_time = time.time()
-    # efficient_rewards = state.pareto_front(single_reward_set)
-    # print ("--- reward calc %s seconds ---" % (time.time() - start_time))
-
-# print (x)
-# print (state.size_graph)
-# start_time = time.time()
-# efficient_rewards = state.pareto_defense_actions(output_reward)
-# print ("--- reward calc %s seconds ---" % (time.time() - start_time))
-# print (efficient_rewards.astype(np.int))
-
-
-
