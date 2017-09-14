@@ -5,15 +5,16 @@
 # - State (contains the current state and possible actions on the state)
 
 import random
+import time
 import numpy as np
 
 class Config(object):
     """Define the configuration of the game"""
     # define graph
-    num_service = 4
+    num_service = 3
     num_viruses = 2
-    num_datadir = 3
-    num_nodes = 100
+    num_datadir = 1
+    num_nodes = 5
 
     sparcity = 0.01
     server_client_ratio = 0.2
@@ -178,6 +179,7 @@ class State(object):
                     for i in range(0, self.size_graph_col1):
                         id1 = (node * self.size_graph_cols) + i
                         id2 = (connected_node * self.size_graph_cols) + i
+                        print ("a: ({}, {}) {} {}".format(id1, id2, self.nn_input[id1] == 1, self.nn_input[id2] == 1))
                         if self.nn_input[id1] == 1 and self.nn_input[id2] == 1:
                             self.score_now[0] += self.graph_weights[id1]
                             self.score_now[0] += self.graph_weights[id2]
@@ -241,6 +243,47 @@ class State(object):
             # node is already down
             else:
                 self.actions_att[i] = 0
+
+    def __reset_reward_matrix(self):
+        """Calculate a matrix showing the rewards for defense/attack action on the state"""
+        # f_1: calculate the services reward
+        rrm_serv_cost = np.zeros(self.size_graph + 1, dtype=np.int)
+        for i in range(self.size_graph):
+            # sum of weights for connected services
+            if i % self.size_graph_cols < self.size_graph_col1:
+                for connected_node in self.graph_edges[i // self.size_graph_cols]:
+                    id2 = (connected_node * self.size_graph_cols) + (i % self.size_graph_cols)
+                    if self.nn_input[id2] == 1:
+                        rrm_serv_cost[i] += self.graph_weights[i] + self.graph_weights[id2]
+
+        rrm_serv_lap = np.array([np.zeros(self.size_graph + 1, dtype=np.int)
+                                 for i in range(self.size_graph + 1)])
+        for i, i_val in enumerate(self.graph_edges):
+            for j, j_val in enumerate(i_val):
+                for k in range(self.size_graph_col1):
+                    idd = i * self.size_graph_cols + k
+                    ida = j_val * self.size_graph_cols + k
+                    rrm_serv_lap[idd][ida] = self.graph_weights[idd] + self.graph_weights[ida]
+
+        rrm_serv = np.subtract(np.array([np.subtract(value + self.score_now[0], rrm_serv_cost)
+                                         for i, value in enumerate(rrm_serv_cost)]), rrm_serv_lap)
+
+        # f_2 calculate the data reward
+        rrm_data_cost = np.multiply(np.append(([np.append(
+            np.zeros(self.size_graph_col1, dtype=np.int),
+            np.ones(self.size_graph_cols - self.size_graph_col1, dtype=np.int))
+                                                for i in range(self.size_graph_rows)]),
+                                              0), np.append(self.graph_weights, 0))
+        rrm_data = np.array([np.subtract(value + self.score_now[1], rrm_data_cost)
+                             for i, value in enumerate(rrm_data_cost)])
+
+        # f_3: calculate the difference in game points reward
+        rrm_pts_att_cost = np.append(([self.att_cost for i in range(self.size_graph_rows)]), 0)
+        rrm_pts_def_cost = np.append(([self.def_cost for i in range(self.size_graph_rows)]), 0)
+        rrm_pts = np.array([np.add(rrm_pts_att_cost, self.maintenance_cost - value)
+                            for i, value in enumerate(rrm_pts_def_cost)])
+
+        return np.stack((rrm_serv, rrm_data, rrm_pts), axis=-1)
 
     def make_move(self, att_action=-1, def_action=-1):
         """Make a move"""
@@ -322,7 +365,7 @@ class State(object):
         # f_2: sum of weight for data and viruses
         if def_action != -1 and def_action % self.size_graph_cols >= self.size_graph_col1:
             self.score_now[1] += self.graph_weights[def_action]
-        if att_action != -1 and self.size_graph_cols >= self.size_graph_col1:
+        if att_action != -1 and att_action % self.size_graph_cols >= self.size_graph_col1:
             self.score_now[1] -= self.graph_weights[att_action]
 
         # f_3: difference in game points
@@ -366,13 +409,14 @@ class State(object):
             if self.nn_input[-1] < self.def_cost[i]:
                 self.actions_def[i:self.size_graph:self.size_graph_cols] = 0
 
-    def __pareto_defense_actions(self, scores):
+    def pareto_defense_actions(self):
         """return: A boolean array with the Pareto efficient defences"""
 
         # get the pareto fronts
-        pareto_fronts = np.array([score[self.__pareto_front(score)] for score in scores])
+        pareto_fronts = np.array([self.pareto_front(score) for score in scores[self.actions_def]])
 
         # assume that all the fronts are efficient
+        start_time = time.time()
         is_efficient = np.ones(pareto_fronts.shape[0], dtype=bool)
         size_fronts = len(pareto_fronts)
         for i in range(size_fronts):
@@ -388,16 +432,18 @@ class State(object):
 
             if not really_false:
                 is_efficient[i] = True
+        print ("--- internal calc %s seconds ---" % (time.time() - start_time))
 
         return is_efficient
 
 
-    def __pareto_front(self, scores, maximize=False):
+    def pareto_front(self, scores, maximize=False):
         """return: A boolean array, indicating whether each point is part of a Pareto front"""
 
         # Assume that all the points are in the front
         costs_len = len(scores)
         in_front = np.ones(costs_len, dtype=bool)
+        np.copyto(in_front, self.actions_att)
 
         # for each point in the front, check if it is dominated by another point
         for i in range(costs_len):
