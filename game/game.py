@@ -22,7 +22,7 @@ class LogObject(object):
         self.step_count = 0
         self.chosen_action = ""
 
-def create_model(input_state, layer1=300, layer2=250):
+def create_model(input_state, layer1=450, layer2=350):
     # create the DQN
     model = Sequential()
     model.add(Dense(units=layer1, input_dim=input_state.nn_input.size))
@@ -40,7 +40,7 @@ def create_model(input_state, layer1=300, layer2=250):
 
     return model
 
-def calculate_offset(file_name=None):
+def calculate_offset(reader):
 
     # initial variables
     offset = np.zeros(3, dtype=int)
@@ -52,7 +52,7 @@ def calculate_offset(file_name=None):
 
     # calculate the offset
     for i in range(times_to_run):
-        input_state = reader.read_state(file_name)
+        input_state = reader.read_state()
         min_score = np.zeros(3, dtype=int)
         max_score = np.zeros(3, dtype=int)
         steps = 0
@@ -120,7 +120,7 @@ def calculate_max(array_containing_max):
             break
     return chosen_index
 
-def run_game(epsilon, reader, model, log_object, single_action=False, default_action=0):
+def run_game(epsilon, reader, model, log_object, final_offset, normalizer, run_type=0, pareto_filter=None, single_action=False, default_action=0):
     # reset game for the next epoch
     gamma = 0.1 # since immediate rewards are more important keep gamma low
     steps = 0
@@ -135,12 +135,25 @@ def run_game(epsilon, reader, model, log_object, single_action=False, default_ac
     top_max = 0
     action_def = 0
     log_object.chosen_action = ""
+    check_one = np.zeros(3, dtype=float)
+    check_two = np.zeros(3, dtype=float)
+    check_three = np.zeros(3, dtype=float)
+
+    if run_type == 0:
+        epsilon = 1
 
     # run the game
     while state.get_points(True) > 0 and state.get_points(False) > 0 and steps < 200:
         # find the Q-values for the state-action pairs
         q_table = model.predict(state.nn_input.reshape(1, state.nn_input.size), batch_size=1)
-        state.pareto_defense_actions()
+
+        if run_type == 2:
+            if steps == 0 and pareto_filter is not None:
+                state.actions_pareto_def = pareto_filter
+            else:
+                state.pareto_defense_actions()
+        else:
+            state.actions_pareto_def = state.actions_def
 
         # choose a defense action
         if single_action:
@@ -152,7 +165,6 @@ def run_game(epsilon, reader, model, log_object, single_action=False, default_ac
                 if state.actions_pareto_def[action_def] == 1:
                     break
         else: # from Q(s,a) values
-            # acion_def = calculate_max(np.multiply(state.actions_def, q_table[0] - min(q_table[0])))
             action_def = np.argmax(np.multiply(state.actions_pareto_def, q_table[0] - min(q_table[0])))
 
         # choose an attack action
@@ -180,13 +192,14 @@ def run_game(epsilon, reader, model, log_object, single_action=False, default_ac
         np.copyto(check_three, score)
 
         # Get max_Q(S',a)
-        q_table_new_state = model.predict(state.nn_input.reshape(1, state.nn_input.size), batch_size=1)
-        maxQ = np.max(q_table_new_state)
+        if run_type > 0:
+            q_table_new_state = model.predict(state.nn_input.reshape(1, state.nn_input.size), batch_size=1)
+            maxQ = np.max(q_table_new_state)
 
-        # update the q_table
-        update = (reward + (gamma * maxQ))
-        q_table[0][action_def] =update
-        model.fit(nn_input_old.reshape(1, state.nn_input.size), q_table, batch_size=1, epochs=1, verbose=0)
+            # update the q_table
+            update = (reward + (gamma * maxQ))
+            q_table[0][action_def] =update
+            model.fit(nn_input_old.reshape(1, state.nn_input.size), q_table, batch_size=1, epochs=1, verbose=0)
 
         # move to the next state
         reward_sum += reward
@@ -194,13 +207,13 @@ def run_game(epsilon, reader, model, log_object, single_action=False, default_ac
         log_object.chosen_action += "{0}|".format(action_def)
 
         # output some data
-        if not single_action:
-            type_of_att = -1 if action_att == state.size_graph else int(action_att % state.size_graph_cols < state.size_graph_col1)
-            type_of_def = -1 if action_def == state.size_graph else int(action_def % state.size_graph_cols < state.size_graph_col1)
-            log_object.output_string2 += ("{0}) {1} {2} : {3} {4} : {5} {6} {7} \n".format(steps,
-                                            action_att, action_def, type_of_att, type_of_def,
-                                            check_one.astype(int),
-                                            check_three.astype(int), int(reward)))
+        # if not single_action:
+        #     type_of_att = -1 if action_att == state.size_graph else int(action_att % state.size_graph_cols < state.size_graph_col1)
+        #     type_of_def = -1 if action_def == state.size_graph else int(action_def % state.size_graph_cols < state.size_graph_col1)
+        #     log_object.output_string2 += ("{0}) {1} {2} : {3} {4} : {5} {6} {7} \n".format(steps,
+        #                                     action_att, action_def, type_of_att, type_of_def,
+        #                                     check_one.astype(int),
+        #                                     check_three.astype(int), int(reward)))
             # log_object.output_string2 += ("{0}) {1} : {2} {3} {4} {5} \n".format(steps, action_def,
             #                                 check_one.astype(int),
             #                                 check_two.astype(int),
@@ -212,8 +225,60 @@ def run_game(epsilon, reader, model, log_object, single_action=False, default_ac
     log_object.reward_sum = reward_sum
     log_object.vector_reward_sum = vector_reward_sum
     log_object.step_count = steps
-    log_object.step_count = steps
     return log_object
+
+def run_epochs(reader, epochs, run_type=0, pareto_filter=None):
+
+    # read and write existing state
+    state = reader.read_state()
+    log_object = LogObject()
+    final_offset, normalizer = calculate_offset(reader)
+
+    avg_sum = 0
+    avg_vector_sum = np.zeros(3, dtype=np.int)
+
+    # create the DQN
+    model = create_model(state)
+
+    print ("------------------ configuration {} ({} : {}) {} ------------------".format(reader.default_file_name, state.config.num_nodes, state.config.sparcity, run_type))
+
+    # run the experiment
+    start_time = time.time()
+    for i in range(state.size_graph + 1):
+
+        # go through every action
+        log_object = run_game(0, reader, model, log_object, final_offset, normalizer, run_type, pareto_filter, True, state.size_graph - i)
+        # save the output data
+        # log_object.output_string += "{0}) {1} {2:03d}, {3!r}\n".format(log_object.step_count, log_object.chosen_action,
+        #                             int(log_object.reward_sum), log_object.vector_reward_sum.astype(int).tolist())
+
+    print ("--- run 0 %s seconds ---" % (time.time() - start_time))
+    start_time = time.time()
+
+    for i in range(epochs):
+
+        # reset game for the next epoch
+        epsilon = (1 - (i / epochs)) if i < (epochs * 3 / 5)  else 0.2
+        log_object = run_game(epsilon, reader, model, log_object, final_offset, normalizer, run_type, pareto_filter)
+
+        # save the output data
+        avg_sum += log_object.reward_sum
+        avg_vector_sum += log_object.vector_reward_sum
+        if (i % (epochs / 100)) == 0:
+            log_object.output_string += "{0}\n".format(int((avg_sum * 100) / epochs))
+            log_object.output_string2 += "{0!r}\n".format(np.divide(log_object.vector_reward_sum * 100, epochs).astype(int).tolist())
+            log_object.output_string3 += "({0}) {1} \n".format(log_object.step_count, log_object.chosen_action)
+            avg_vector_sum = np.zeros(3, dtype=np.int)
+            avg_sum = 0
+
+    # output the data
+    print ("--- run 1 %s seconds ---" % (time.time() - start_time))
+    print (log_object.output_string)
+    print ("------------------")
+    print (log_object.output_string2)
+    print ("------------------")
+    # print (log_object.output_string3)
+    # print ("------------------")
 
 
 #------- START MAIN CODE --------
@@ -221,78 +286,39 @@ def run_game(epsilon, reader, model, log_object, single_action=False, default_ac
 # Configuration
 config = Config()
 config.num_service = 3
-config.num_viruses = 2
+config.num_viruses = 1
 config.num_datadir = 1
-config.num_nodes = 500
-config.sparcity = 0.01
-config.att_points = 1000
-config.def_points = 1000
 config.offset = np.zeros(3, dtype=np.int)
-check_one = np.zeros(3, dtype=float)
-check_two = np.zeros(3, dtype=float)
-check_three = np.zeros(3, dtype=float)
+
+node_options = [50, 100, 250, 500]
+# node_options = [10, 30]
+points_options = [100, 400, 1000, 2000]
+sparse_options = [0.001, 0.005, 0.01, 0.05]
+# sparse_options = [0.001, 0.005]
+epochs_options = [200, 200, 200, 200]
+
+reader_files = []
+
+# create the states
+for i in enumerate(node_options):
+    config.num_nodes = i[1]
+    config.att_points = points_options[i[0]]
+    config.def_points = points_options[i[0]]
+    for j in enumerate(sparse_options):
+        config.sparcity = j[1]
+        reader = StateReader("state_{}_{}.csv".format(i[0], j[0]))
+        reader.write_state(State(config))
+        reader_files.append(reader.default_file_name)
+
+# run the game with the states
+for i in enumerate(node_options):
+    for j in enumerate(sparse_options):
+        # read the state and generate the starting pareto front
+        reader = StateReader(reader_files[(i[0] * len(sparse_options)) + j[0]])
+        starting_pareto_filter = reader.read_state().pareto_defense_actions()
+        for k in range(3):
+            run_epochs(reader, epochs_options[i[0]], k, starting_pareto_filter)
+
+
 # config.scalarization = np.array([0, 0, 10], dtype=np.int)
 
-# experiment variables
-epochs = 2
-avg_sum = 0
-avg_vector_sum = np.zeros(3, dtype=np.int)
-
-# read and write existing state
-reader = StateReader()
-state = State(config)
-reader.write_state(state)
-state = reader.read_state()
-log_object = LogObject()
-final_offset, normalizer = calculate_offset()
-
-# create the DQN
-model = create_model(state)
-
-state.print_graph()
-print ("------------------")
-
-# run the experiment
-start_time = time.time()
-
-# for i in range(state.size_graph + 1):
-
-#     # go through every action
-#     log_object = run_game(0, reader, model, log_object, True,state.size_graph - i)
-
-#     # save the output data
-#     # log_object.output_string += "{0}) {1} {2:03d}, {3!r}\n".format(log_object.step_count, log_object.chosen_action,
-#     #                             int(log_object.reward_sum), log_object.vector_reward_sum.astype(int).tolist())
-
-print ("--- preliminary run %s seconds ---" % (time.time() - start_time))
-start_time = time.time()
-
-for i in range(epochs):
-
-    # reset game for the next epoch
-    # if i < (epochs * 0.1):
-    epsilon = (1 - (i / epochs)) if i < (epochs * 3 / 5)  else 0.2
-    log_object = run_game(epsilon, reader, model, log_object)
-
-    # save the output data
-    avg_sum += log_object.reward_sum
-    avg_vector_sum += log_object.vector_reward_sum
-    if (i % (epochs / 100)) == 0:
-        log_object.output_string += "{0}\n".format(int((avg_sum * 100) / epochs))
-        log_object.output_string2 += "{0!r} : ({1}) {2} \n".format(np.divide(log_object.vector_reward_sum * 100, epochs).astype(int).tolist(),
-                                    log_object.step_count, log_object.chosen_action)
-        avg_vector_sum = np.zeros(3, dtype=np.int)
-        avg_sum = 0
-
-# output the data
-print ("--- actual run %s seconds ---" % (time.time() - start_time))
-print (log_object.output_string)
-print ("------------------")
-print (log_object.output_string2)
-print ("------------------")
-
-
-
-# start_time = time.time()
-# efficient_rewards = state.pareto_defense_actions()
-# print ("--- reward calc %s seconds ---" % (time.time() - start_time))

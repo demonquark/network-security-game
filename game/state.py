@@ -12,7 +12,7 @@ class Config(object):
     """Define the configuration of the game"""
     # define graph
     num_service = 3
-    num_viruses = 2
+    num_viruses = 1
     num_datadir = 1
     num_nodes = 5
 
@@ -27,8 +27,8 @@ class Config(object):
     # define the attack and defence costs
     att_points = 100
     def_points = 100
-    att_cost_weights = np.array([2, 5, 8], dtype=np.int)
-    def_cost_weights = np.array([3, 6, 0], dtype=np.int)
+    att_cost_weights = np.array([6, 12, 8], dtype=np.int)
+    def_cost_weights = np.array([12, 12, 0], dtype=np.int)
 
     # define scalarization weights
     scalarization = np.array([6, 2, 2], dtype=np.int)
@@ -415,6 +415,10 @@ class State(object):
         self.actions_att[self.size_graph] = False
         self.actions_def[self.size_graph] = False
 
+        if  not (np.any(self.actions_att) and np.any(self.actions_att)):
+            np.copyto(self.actions_pareto_def, self.actions_def)
+            return self.actions_pareto_def
+
         # get the indices of the valid defenses
         indices = np.zeros(self.size_graph + 1, np.int)
         for i in range(self.size_graph + 1):
@@ -429,11 +433,15 @@ class State(object):
 
         # get the reward matrix
         scores = self.__reset_reward_matrix()
-        # scores[indices[2]][indices2[5]] = np.array([-500, -500, -500],dtype=np.int)
         scores = scores[self.actions_def]
         truncated_scores = []
         for i, j in enumerate(scores):
-            truncated_scores.append(np.unique(j[self.actions_att], axis=0))
+            try:
+                truncated_scores.append(np.unique(j[self.actions_att], axis=0))
+            except ValueError:
+                print("error: {} {}".format(i, j))
+                print("error: {} {}".format(i, j[self.actions_att]))
+                raise
 
         # calculate the pareto fronts
         pareto_fronts = np.array([self.__pareto_front(score) for score in truncated_scores])
@@ -462,6 +470,8 @@ class State(object):
         for i, j in enumerate(indices[is_efficient]):
             self.actions_pareto_def[j] = True
         self.actions_pareto_def[self.size_graph] = True
+
+        return self.actions_pareto_def
 
     def __pareto_front(self, scores, maximize=False):
         """return: A boolean array, indicating whether each point is part of a Pareto front"""
