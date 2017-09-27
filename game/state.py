@@ -50,7 +50,6 @@ class State(object):
         self.possible_weights = [config.low_value_nodes, config.high_value_nodes]
 
         # score variables
-        self.reward_sum = 0
         self.maintenance_cost = 0
         self.score_old = np.zeros(3, dtype=np.int)
         self.score_now = np.zeros(3, dtype=np.int)
@@ -167,7 +166,6 @@ class State(object):
 
     def reset_scores(self):
         """Calcute the state score from the graph"""
-        self.reward_sum = 0
         self.maintenance_cost = 0
         self.score_old = np.zeros(3, dtype=np.int)
         self.score_now = np.zeros(3, dtype=np.int)
@@ -244,7 +242,7 @@ class State(object):
             else:
                 self.actions_att[i] = 0
 
-    def __reset_reward_matrix(self):
+    def __reset_reward_matrix(self, recalculate=False):
         """Calculate a matrix showing the rewards for defense/attack action on the state"""
         # f_1: calculate the services reward
         rrm_serv_cost = np.zeros(self.size_graph + 1, dtype=np.int)
@@ -436,12 +434,7 @@ class State(object):
         scores = scores[self.actions_def]
         truncated_scores = []
         for i, j in enumerate(scores):
-            try:
-                truncated_scores.append(np.unique(j[self.actions_att], axis=0))
-            except ValueError:
-                print("error: {} {}".format(i, j))
-                print("error: {} {}".format(i, j[self.actions_att]))
-                raise
+            truncated_scores.append(np.unique(j[self.actions_att], axis=0))
 
         # calculate the pareto fronts
         pareto_fronts = np.array([self.__pareto_front(score) for score in truncated_scores])

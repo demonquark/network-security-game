@@ -4,6 +4,7 @@ import random
 import time
 import numpy as np
 from state import Config, State
+from chaosstate import ChaosState
 from reader import StateReader
 
 from keras.models import Sequential
@@ -291,10 +292,10 @@ config.num_datadir = 1
 config.offset = np.zeros(3, dtype=np.int)
 
 node_options = [50, 100, 250, 500]
-# node_options = [10, 30]
+node_options = [10]
 points_options = [100, 400, 1000, 2000]
 sparse_options = [0.001, 0.005, 0.01, 0.05]
-# sparse_options = [0.001, 0.005]
+sparse_options = [0.1]
 epochs_options = [200, 200, 200, 200]
 
 reader_files = []

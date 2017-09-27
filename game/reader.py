@@ -7,6 +7,7 @@
 import csv, ast
 import numpy as np
 from state import Config, State
+from chaosstate import ChaosState
 
 class StateReader(object):
     """Read config and state files"""
