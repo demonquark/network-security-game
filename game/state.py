@@ -5,7 +5,6 @@
 # - State (contains the current state and possible actions on the state)
 
 import random
-import time
 import numpy as np
 
 class Config(object):
@@ -36,7 +35,7 @@ class Config(object):
 
 class State(object):
     """Save the values in a state"""
-    def __init__(self, config, default_input=None, default_edges=None, default_graph_weights=None):
+    def __init__(self, config, default_input=None, default_edges=None, default_graph_weights=None, default_reward_matrix=None):
         # graph variables
         self.config = config
         self.size_graph_col1 = config.num_service
@@ -53,6 +52,7 @@ class State(object):
         self.maintenance_cost = 0
         self.score_old = np.zeros(3, dtype=np.int)
         self.score_now = np.zeros(3, dtype=np.int)
+        self.reward_matrix = default_reward_matrix
 
         self.att_cost = np.concatenate([np.ones(config.num_service, dtype=np.int)
                                         * config.att_cost_weights[0],
@@ -242,7 +242,7 @@ class State(object):
             else:
                 self.actions_att[i] = 0
 
-    def __reset_reward_matrix(self, recalculate=False):
+    def reset_reward_matrix(self):
         """Calculate a matrix showing the rewards for defense/attack action on the state"""
         # f_1: calculate the services reward
         rrm_serv_cost = np.zeros(self.size_graph + 1, dtype=np.int)
@@ -281,7 +281,8 @@ class State(object):
         rrm_pts = np.array([np.add(rrm_pts_att_cost, self.maintenance_cost - value)
                             for i, value in enumerate(rrm_pts_def_cost)])
 
-        return np.stack((rrm_serv, rrm_data, rrm_pts), axis=-1)
+        self.reward_matrix = np.stack((rrm_serv, rrm_data, rrm_pts), axis=-1)
+        return self.reward_matrix
 
     def make_move(self, att_action=-1, def_action=-1):
         """Make a move"""
@@ -328,12 +329,12 @@ class State(object):
         self.nn_input[-2] -= self.maintenance_cost
 
         # update scores
-        self.__update_score(att_action, def_action)
-        self.__update_valid_actions(att_action, def_action)
+        self._update_score(att_action, def_action)
+        self._update_valid_actions(att_action, def_action)
 
         return self.score_now
 
-    def __update_score(self, att_action=-1, def_action=-1):
+    def _update_score(self, att_action=-1, def_action=-1):
         """Update the score based on the supplied moves"""
 
         # default action is do nothing
@@ -370,7 +371,7 @@ class State(object):
         self.score_now[2] = self.nn_input[-1] - self.nn_input[-2]
 
 
-    def __update_valid_actions(self, att_action=-1, def_action=-1):
+    def _update_valid_actions(self, att_action=-1, def_action=-1):
         """Update the valid actions based on remaining game points"""
 
         # default action is do nothing
@@ -423,21 +424,21 @@ class State(object):
             indices[i] = i
         indices = indices[self.actions_def]
 
-        # get the indices of the valid defenses
+        # get the indices of the valid attacks
         indices2 = np.zeros(self.size_graph + 1, np.int)
         for i in range(self.size_graph + 1):
             indices2[i] = i
         indices2 = indices2[self.actions_att]
 
         # get the reward matrix
-        scores = self.__reset_reward_matrix()
+        scores = self.reset_reward_matrix()
         scores = scores[self.actions_def]
         truncated_scores = []
         for i, j in enumerate(scores):
             truncated_scores.append(np.unique(j[self.actions_att], axis=0))
 
         # calculate the pareto fronts
-        pareto_fronts = np.array([self.__pareto_front(score) for score in truncated_scores])
+        pareto_fronts = np.array([self._pareto_front(score) for score in truncated_scores])
 
         # assume that all the fronts are efficient
         is_efficient = np.ones(pareto_fronts.shape[0], dtype=bool)
@@ -458,7 +459,7 @@ class State(object):
 
         self.actions_att[self.size_graph] = True
         self.actions_def[self.size_graph] = True
-        
+     
         self.actions_pareto_def = np.zeros(self.size_graph + 1, dtype=bool) # +1 for do nothing
         for i, j in enumerate(indices[is_efficient]):
             self.actions_pareto_def[j] = True
@@ -466,7 +467,7 @@ class State(object):
 
         return self.actions_pareto_def
 
-    def __pareto_front(self, scores, maximize=False):
+    def _pareto_front(self, scores, maximize=False):
         """return: A boolean array, indicating whether each point is part of a Pareto front"""
 
         # Assume that all the points are in the front
@@ -480,9 +481,7 @@ class State(object):
                 # A point is in the front if none/not-any of the other scores is objectively better
                 in_front[i] = not np.any(np.all(scores[i] >= scores[in_front], axis=1))
 
-        # print ("lengths: {} {} | {}".format(len(scores), len(scores[in_front]), (scores[in_front]).tolist()))
         return scores[in_front]
-
 
     def get_actions(self, defender=True):
         """Get a 2D representation of the graph"""

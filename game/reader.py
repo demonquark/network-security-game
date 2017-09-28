@@ -25,6 +25,7 @@ class StateReader(object):
         # write to the defined config file
         with open(file_name, 'w') as csvfile:
             writer = csv.writer(csvfile, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            writer.writerow([1 if isinstance(state, ChaosState) else 0])
             writer.writerow([state.config.num_service])
             writer.writerow([state.config.num_viruses])
             writer.writerow([state.config.num_datadir])
@@ -65,31 +66,35 @@ class StateReader(object):
             reader = csv.reader(csvfile, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
             content = list(reader)
 
-        if isinstance(content, list) and len(content) == 17:
-            config.num_service = int(content[0][0])
-            config.num_viruses = int(content[1][0])
-            config.num_datadir = int(content[2][0])
-            config.num_nodes = int(content[3][0])
+        if isinstance(content, list) and len(content) == 18:
+            is_basic_state = (int(content[0][0]) == 0)
+            config.num_service = int(content[1][0])
+            config.num_viruses = int(content[2][0])
+            config.num_datadir = int(content[3][0])
+            config.num_nodes = int(content[4][0])
 
-            config.sparcity = float(content[4][0])
-            config.server_client_ratio = float(content[5][0])
-            config.ratios = np.array(content[6], dtype=np.int)
+            config.sparcity = float(content[5][0])
+            config.server_client_ratio = float(content[6][0])
+            config.ratios = np.array(content[7], dtype=np.int)
 
-            config.low_value_nodes = self.__list_of_list_from_string_list(content[7])
-            config.high_value_nodes = self.__list_of_list_from_string_list(content[8])
+            config.low_value_nodes = self.__list_of_list_from_string_list(content[8])
+            config.high_value_nodes = self.__list_of_list_from_string_list(content[9])
 
-            config.att_points = int(content[9][0])
-            config.def_points = int(content[10][0])
-            config.att_cost_weights = np.array(content[11], dtype=np.int)
-            config.def_cost_weights = np.array(content[12], dtype=np.int)
+            config.att_points = int(content[10][0])
+            config.def_points = int(content[11][0])
+            config.att_cost_weights = np.array(content[12], dtype=np.int)
+            config.def_cost_weights = np.array(content[13], dtype=np.int)
 
-            config.scalarization = np.array(content[13], dtype=np.int)
+            config.scalarization = np.array(content[14], dtype=np.int)
 
-            default_input = np.array(content[14], dtype=np.int)
-            default_edges = self.__list_of_list_from_string_list(content[15])
-            default_graph_weights = np.array(content[16], dtype=np.int)
+            default_input = np.array(content[15], dtype=np.int)
+            default_edges = self.__list_of_list_from_string_list(content[16])
+            default_graph_weights = np.array(content[17], dtype=np.int)
 
-            state = State(config, default_input, default_edges, default_graph_weights)
+            if is_basic_state:
+                state = State(config, default_input, default_edges, default_graph_weights)
+            else:
+                state = ChaosState(config, default_input, default_edges, default_graph_weights)
 
         else:
             print ("Could not read config file.")
