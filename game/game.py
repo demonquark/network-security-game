@@ -7,9 +7,9 @@ from state import Config, State
 from chaosstate import ChaosState
 from reader import StateReader
 
-# from keras.models import Sequential
-# from keras.layers.core import Dense, Dropout, Activation
-# from keras.optimizers import RMSprop
+from keras.models import Sequential
+from keras.layers.core import Dense, Dropout, Activation
+from keras.optimizers import RMSprop
 
 class LogObject(object):
     """Save some text files"""
@@ -49,10 +49,12 @@ def calculate_offset(reader):
     min_score_sum = np.zeros(3, dtype=int)
     range_max = np.zeros(3, dtype=int)
     times_to_run = 50
+    in_state = reader.read_state()
+    default_reward_matrix = in_state.reward_matrix if isinstance(in_state, ChaosState) else None
 
     # calculate the offset
     for i in range(times_to_run):
-        in_state = reader.read_state()
+        in_state = reader.read_state(default_reward_matrix)
         min_score = np.zeros(3, dtype=int)
         max_score = np.zeros(3, dtype=int)
         steps = 0
@@ -212,7 +214,7 @@ def run_game(epsilon, state, model, log_object, final_offset, normalizer,
     log_object.step_count = steps
     return log_object
 
-def run_epochs(reader, epochs, run_type=0, pareto_filter=None):
+def run_epochs(reader, epochs, run_type=0):
     """Run the game for the given number of epochs"""
 
     # read state and reset variables
@@ -221,6 +223,8 @@ def run_epochs(reader, epochs, run_type=0, pareto_filter=None):
     log_object = LogObject()
     state = reader.read_state()
     offset, normalizer = (0, 100) if  isinstance(state, ChaosState) else calculate_offset(reader)
+    default_reward_matrix = state.reward_matrix if isinstance(state, ChaosState) else None
+    pareto_filter = state.pareto_defense_actions()
 
     # create the DQN
     model = create_model(state)
@@ -232,37 +236,37 @@ def run_epochs(reader, epochs, run_type=0, pareto_filter=None):
     # dry run of the experiment to offset first move bias
     start_time = time.time()
     for i in range(state.size_graph + 1):
-        state = reader.read_state()
-        # log_object = run_game(0, state, model, log_object, offset, normalizer, run_type, pareto_filter, state.size_graph - i)
+        state = reader.read_state(None, default_reward_matrix)
+        log_object = run_game(0, state, model, log_object, offset, normalizer, run_type, pareto_filter, state.size_graph - i)
     print ("--- run 0 %s seconds ---" % (time.time() - start_time))
 
-    # # actual run of the experiment
-    # start_time = time.time()
-    # for i in range(epochs):
+    # actual run of the experiment
+    start_time = time.time()
+    for i in range(epochs):
 
-    #     # play the game
-    #     state = reader.read_state()
-    #     epsilon = (1 - (i / epochs)) if i < (epochs * 3 / 5)  else 0.2
-    #     log_object = run_game(epsilon, state, model, log_object, offset, normalizer, run_type, pareto_filter)
+        # play the game
+        state = reader.read_state(None, default_reward_matrix)
+        epsilon = (1 - (i / epochs)) if i < (epochs * 3 / 5)  else 0.2
+        log_object = run_game(epsilon, state, model, log_object, offset, normalizer, run_type, pareto_filter)
 
-    #     # save the output data
-    #     avg_sum += log_object.reward_sum
-    #     avg_vector_sum += log_object.vector_reward_sum
-    #     if (i % (epochs / 100)) == 0:
-    #         log_object.output_string += "{0}\n".format(int((avg_sum * 100) / epochs))
-    #         log_object.output_string2 += "{0!r}\n".format(
-    #             np.divide(log_object.vector_reward_sum * 100, epochs).astype(int).tolist())
-    #         log_object.output_string3 += "({0}) {1} \n".format(
-    #             log_object.step_count, log_object.chosen_action)
-    #         avg_vector_sum = np.zeros(3, dtype=np.int)
-    #         avg_sum = 0
+        # save the output data
+        avg_sum += log_object.reward_sum
+        avg_vector_sum += log_object.vector_reward_sum
+        if (i % (epochs / 100)) == 0:
+            log_object.output_string += "{0}\n".format(int((avg_sum * 100) / epochs))
+            log_object.output_string2 += "{0!r}\n".format(
+                np.divide(log_object.vector_reward_sum * 100, epochs).astype(int).tolist())
+            log_object.output_string3 += "({0}) {1} \n".format(
+                log_object.step_count, log_object.chosen_action)
+            avg_vector_sum = np.zeros(3, dtype=np.int)
+            avg_sum = 0
 
-    # # output the data
-    # print ("--- run 1 %s seconds ---" % (time.time() - start_time))
-    # print (log_object.output_string)
-    # print ("------------------")
-    # print (log_object.output_string2)
-    # print ("------------------")
+    # output the data
+    print ("--- run 1 %s seconds ---" % (time.time() - start_time))
+    print (log_object.output_string)
+    print ("------------------")
+    print (log_object.output_string2)
+    print ("------------------")
     # print (log_object.output_string3)
     # print ("------------------")
 
@@ -278,56 +282,38 @@ config.num_nodes = 3
 config.offset = np.zeros(3, dtype=np.int)
 
 node_options = [50, 100, 250, 500]
-points_options = [100, 400, 1000, 2000]
+points_options = [60, 60, 60, 60]
 sparse_options = [0.001, 0.005, 0.01, 0.05]
 epochs_options = [200, 200, 200, 200]
 
-node_options = [100]
+node_options = [50]
 sparse_options = [0.1]
-points_options = [100]
-epochs_options = [2]
+points_options = [60]
+epochs_options = [10]
 
 reader_files = []
 
 
-config.num_nodes = node_options[0]
-config.att_points = points_options[0]
-config.def_points = points_options[0]
-start_time = time.time()
-reader = StateReader("time.csv")
-reader.write_state(State(config))
-for i in range(1):
-    state = reader.read_state()
-print ("--- state %s seconds ---" % (time.time() - start_time))
-start_time = time.time()
-reader.write_state(ChaosState(config))
-print ("--- creat %s seconds ---" % (time.time() - start_time))
-start_time = time.time()
-for i in range(1):
-    state = reader.read_state()
-print ("--- chaos %s seconds ---" % (time.time() - start_time))
-
-# # create the states
-# for node_count in enumerate(node_options):
-#     config.num_nodes = node_count[1]
-#     config.att_points = points_options[node_count[0]]
-#     config.def_points = points_options[node_count[0]]
-#     for sparsity in enumerate(sparse_options):
-#         config.sparcity = sparsity[1]
-#         in_reader = StateReader("state_{}_{}.csv".format(node_count[0], sparsity[0]))
-#         # in_reader.write_state(State(config))
-#         in_reader.write_state(ChaosState(config))
-#         reader_files.append(in_reader.default_file_name)
+# create the states
+for node_count in enumerate(node_options):
+    config.num_nodes = node_count[1]
+    config.att_points = points_options[node_count[0]]
+    config.def_points = points_options[node_count[0]]
+    for sparsity in enumerate(sparse_options):
+        config.sparcity = sparsity[1]
+        in_reader = StateReader("state_{}_{}.csv".format(node_count[0], sparsity[0]))
+        # in_reader.write_state(State(config))
+        in_reader.write_state(ChaosState(config))
+        reader_files.append(in_reader.default_file_name)
 
 
-# # run the game with the states
-# for node_count in enumerate(node_options):
-#     for sparsity in enumerate(sparse_options):
-#         # read the state and generate the starting pareto front
-#         in_reader = StateReader(reader_files[(node_count[0] * len(sparse_options)) + sparsity[0]])
-#         starting_pareto_filter = in_reader.read_state().pareto_defense_actions()
-#         for k in range(1):
-#             run_epochs(in_reader, epochs_options[node_count[0]], k, starting_pareto_filter)
+# run the game with the states
+for node_count in enumerate(node_options):
+    for sparsity in enumerate(sparse_options):
+        # read the state and generate the starting pareto front
+        in_reader = StateReader(reader_files[(node_count[0] * len(sparse_options)) + sparsity[0]])
+        for k in range(3):
+            run_epochs(in_reader, epochs_options[node_count[0]], k)
 
 
 # config.scalarization = np.array([0, 0, 10], dtype=np.int)

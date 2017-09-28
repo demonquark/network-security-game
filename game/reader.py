@@ -49,7 +49,7 @@ class StateReader(object):
             writer.writerow(state.graph_edges)
             writer.writerow(state.graph_weights)
 
-    def read_state(self, file_name=None):
+    def read_state(self, file_name=None, default_reward_matrix=None):
         """Read a state file"""
 
         # basic variables
@@ -94,7 +94,7 @@ class StateReader(object):
             if is_basic_state:
                 state = State(config, default_input, default_edges, default_graph_weights)
             else:
-                state = ChaosState(config, default_input, default_edges, default_graph_weights)
+                state = ChaosState(config, default_input, default_edges, default_graph_weights, default_reward_matrix)
 
         else:
             print ("Could not read config file.")
