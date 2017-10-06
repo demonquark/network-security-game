@@ -108,9 +108,10 @@ def run_game(epsilon, state, model, log_object, final_offset, normalizer,
     action_att = 0
     reward_sum = 0
     vector_reward_sum = np.zeros(3, dtype=np.int)
+    attacker_scalarization = np.array([7, 3, 0], dtype=np.int)
     nn_input_old = np.zeros(state.size_graph + 2, dtype=np.int) # +2 for the game points
 
-    # run_type == 0 means random defender actions
+    # run_type == 0 (RANDOM) means random defender actions
     if run_type == 0:
         epsilon = 1
 
@@ -125,25 +126,25 @@ def run_game(epsilon, state, model, log_object, final_offset, normalizer,
         # find the Q-values for the state-action pairs
         q_table = model.predict(state.nn_input.reshape(1, state.nn_input.size), batch_size=1)
 
-        # run_type == 2 means use the pareto front
-        if run_type == 2:
-            # use the precalculated pareto front for the first move
-            if steps == 0 and pareto_filter is not None:
-                state.actions_pareto_def = pareto_filter
-            else:
-                state.pareto_defense_actions()
+        if isinstance(state, ChaosState):
+            # determine the valid moves by using the chaos state method
+            state.scalarized_attack_actions(attacker_scalarization, run_type)
         else:
-            # run_type == 1 means use the entire set of defense actions
-            state.actions_pareto_def = state.actions_def
+            if run_type == 2:
+                # use the precalculated pareto front for the first move
+                if steps == 0 and pareto_filter is not None:
+                    state.actions_pareto_def = pareto_filter
+                else:
+                    state.pareto_defense_actions()
+            else:
+                # use entire set
+                state.actions_pareto_def = state.actions_def
 
         # choose a defense action
         if default_action >= 0:
             # default action assigned means we just want to run a single action once
             action_def = default_action
             steps = 200
-        elif run_type == 3:
-            # run_type == 3 means use a scalarization approach
-            action_def = np.argmax(np.multiply(state.actions_pareto_def, q_table[0] - min(q_table[0])))            
         elif random.random() < epsilon: 
             # random action
             for j in range(100):
@@ -155,10 +156,32 @@ def run_game(epsilon, state, model, log_object, final_offset, normalizer,
             action_def = np.argmax(np.multiply(state.actions_pareto_def, q_table[0] - min(q_table[0])))
 
         # choose an attack action
-        for j in range(100):
-            action_att = np.random.randint(0, state.size_graph)
-            if state.actions_att[action_att] == 1:
-                break
+        num_possible_moves = state.size_graph + 1
+        indices = np.zeros(num_possible_moves, np.int)
+        for i in range(num_possible_moves):
+            indices[i] = i
+        indices = indices[state.actions_att]
+        
+        reward_set = np.zeros(num_possible_moves * 3, np.int).reshape(num_possible_moves, 3)
+        np.copyto(reward_set, state.reward_matrix[action_def * num_possible_moves:(action_def+1) * num_possible_moves])
+
+        preferred_attacks = np.zeros(len(indices), np.int)
+        output_text = ""
+        for i in range(len(indices)):
+            preferred_attacks[i] = np.dot(attacker_scalarization, reward_set[indices[i]])
+        
+        action_att = np.argmin(preferred_attacks)
+        action_att = indices[action_att]
+
+        # # for j in range(state.size_graph + 1):
+        # #     if not state.actions_att[j]:
+        # #         reward_set[j] = np.ones(3, np.int)
+
+        # # actions_pareto_att = state._pareto_front_filter(reward_set)
+        # for j in range(100):
+        #     action_att = np.random.randint(0, state.size_graph)
+        #     if state.actions_att[action_att] == 1:
+        #         break
 
         # Take actions, observe new state
         np.copyto(nn_input_old, state.nn_input)
@@ -172,10 +195,12 @@ def run_game(epsilon, state, model, log_object, final_offset, normalizer,
         np.copyto(check_one, score)
 
         # calculate the reward
+        # goal_scalarization = np.array([5, 5, 0], dtype=np.int)
         score = np.subtract(score, final_offset)
         np.copyto(check_two, score)
         score = np.divide(score * 100, normalizer)
         reward = np.dot(state.config.scalarization, score) / np.sum(state.config.scalarization)
+        # reward = np.dot(goal_scalarization, score) / np.sum(goal_scalarization)
         np.copyto(check_three, score)
 
         # Get max_Q(S',a)
@@ -233,12 +258,12 @@ def run_epochs(reader, epochs, run_type=0):
     print ("------------------ configuration {} ({} : {}) {} ------------------".format(
         reader.default_file_name, state.config.num_nodes, state.config.sparcity, run_type))
 
-    # dry run of the experiment to offset first move bias
-    start_time = time.time()
-    for i in range(state.size_graph + 1):
-        state = reader.read_state(None, default_reward_matrix)
-        log_object = run_game(0, state, model, log_object, offset, normalizer, run_type, pareto_filter, state.size_graph - i)
-    print ("--- run 0 %s seconds ---" % (time.time() - start_time))
+    # # dry run of the experiment to offset first move bias
+    # start_time = time.time()
+    # for i in range(state.size_graph + 1):
+    #     state = reader.read_state(None, default_reward_matrix)
+    #     log_object = run_game(0, state, model, log_object, offset, normalizer, run_type, pareto_filter, state.size_graph - i)
+    # print ("--- run 0 %s seconds ---" % (time.time() - start_time))
 
     # actual run of the experiment
     start_time = time.time()
@@ -275,11 +300,12 @@ def run_epochs(reader, epochs, run_type=0):
 
 # Configuration
 config = Config()
-config.num_service = 4
-config.num_viruses = 2
+config.num_service = 3
+config.num_viruses = 3
 config.num_datadir = 0
 config.num_nodes = 3
 config.offset = np.zeros(3, dtype=np.int)
+config.scalarization = np.array([3, 7, 0], dtype=np.int)
 
 node_options = [50, 100, 250, 500]
 points_options = [60, 60, 60, 60]
@@ -288,8 +314,8 @@ epochs_options = [200, 200, 200, 200]
 
 node_options = [50]
 sparse_options = [0.1]
-points_options = [60]
-epochs_options = [10]
+points_options = [50]
+epochs_options = [200]
 
 reader_files = []
 
@@ -312,7 +338,7 @@ for node_count in enumerate(node_options):
     for sparsity in enumerate(sparse_options):
         # read the state and generate the starting pareto front
         in_reader = StateReader(reader_files[(node_count[0] * len(sparse_options)) + sparsity[0]])
-        for k in range(3):
+        for k in range(7):
             run_epochs(in_reader, epochs_options[node_count[0]], k)
 
 

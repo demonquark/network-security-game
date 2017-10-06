@@ -282,6 +282,7 @@ class State(object):
                             for i, value in enumerate(rrm_pts_def_cost)])
 
         self.reward_matrix = np.stack((rrm_serv, rrm_data, rrm_pts), axis=-1)
+        print (self.reward_matrix.shape)
         return self.reward_matrix
 
     def make_move(self, att_action=-1, def_action=-1):
@@ -467,7 +468,7 @@ class State(object):
 
         return self.actions_pareto_def
 
-    def _pareto_front(self, scores, maximize=False):
+    def _pareto_front_filter(self, scores, maximize=False):
         """return: A boolean array, indicating whether each point is part of a Pareto front"""
 
         # Assume that all the points are in the front
@@ -479,9 +480,16 @@ class State(object):
             if in_front[i]:
                 in_front[i] = False
                 # A point is in the front if none/not-any of the other scores is objectively better
-                in_front[i] = not np.any(np.all(scores[i] >= scores[in_front], axis=1))
+                if maximize:
+                    in_front[i] = not np.any(np.all(scores[i] <= scores[in_front], axis=1))
+                else:
+                    in_front[i] = not np.any(np.all(scores[i] >= scores[in_front], axis=1))
 
-        return scores[in_front]
+        return in_front
+
+    def _pareto_front(self, scores, maximize=False):
+        """return: A boolean array, indicating whether each point is part of a Pareto front"""
+        return scores[self._pareto_front_filter(scores, maximize)]
 
     def get_actions(self, defender=True):
         """Get a 2D representation of the graph"""
