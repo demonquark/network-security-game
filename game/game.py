@@ -314,7 +314,7 @@ epochs_options = [200, 200, 200, 200]
 
 node_options = [50]
 sparse_options = [0.1]
-points_options = [50]
+points_options = [150]
 epochs_options = [200]
 
 reader_files = []

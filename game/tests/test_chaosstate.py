@@ -61,3 +61,44 @@ import matplotlib.cm as cmx
 
 # ax.grid(True)
 # plt.show()
+
+
+# #------- START MAIN CODE --------
+
+# # Configuration
+# config = Config()
+# config.num_service = 3
+# config.num_viruses = 3
+# config.num_datadir = 0
+# config.num_nodes = 3
+# config.offset = np.zeros(3, dtype=np.int)
+# config.scalarization = np.array([3, 7, 0], dtype=np.int)
+
+# node_options = [50, 100, 250, 500]
+# points_options = [60, 60, 60, 60]
+# sparse_options = [0.001, 0.005, 0.01, 0.05]
+# epochs_options = [200, 200, 200, 200]
+
+# node_options = [50]
+# sparse_options = [0.1]
+# points_options = [150]
+# epochs_options = [200]
+
+# reader_files = []
+
+# config.num_nodes = node_options[0]
+# config.att_points = points_options[0]
+# config.def_points = points_options[0]
+# config.sparcity = sparse_options[0]
+
+# run_state = ChaosState(config)
+# log_text = ""
+# for k in range(1, 7):
+#     log_text += "--- {} ---\n".format(k)
+#     for j in range (50):
+#         duration = 0
+#         for i in range (10):
+#             duration += run_state.scalarized_attack_actions(np.array([7, 3, 0], dtype=np.int), k)
+#         log_text += "{0}\n".format(duration)
+
+# print (log_text)
