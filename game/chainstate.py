@@ -7,6 +7,7 @@
 import numpy as np
 from state import Config
 import random
+import time
 
 class ChainState(object):
     """Save the values in a state"""
@@ -21,8 +22,8 @@ class ChainState(object):
         self.gamma = 1
 
         # sizes
-        self.size_defs = 10
-        self.size_atts = 8
+        self.size_defs = 12
+        self.size_atts = 12
         self.size_nodes = config.num_nodes
         self.size_edges = int((self.size_nodes * (self.size_nodes - 1)) / 2)
 
@@ -223,6 +224,8 @@ class ChainState(object):
                 # calculate the cost
                 self.results[defense][attack][1] = cost_defense - cost_attack
 
+                self.results[np.isnan(self.results)] = 0
+
     def _pareto_front_filter(self, scores, maximize=False):
         """return: A boolean array, indicating whether each point is part of a Pareto front"""
 
@@ -249,12 +252,83 @@ class ChainState(object):
     def pareto_defense_actions(self):
         """return: A boolean array with the Pareto efficient defences"""
 
-        pareto_solutions = []
+        # get the pareto fronts
+        pareto_fronts = np.array([self._pareto_front(score, True) for score in self.results])
 
-        for defense_set in self.results:
-            pareto_solutions.append(self._pareto_front(defense_set, True))
+        # assume that all the fronts are efficient
+        is_efficient = np.ones(pareto_fronts.shape[0], dtype=bool)
+        size_fronts = len(pareto_fronts)
+        for i in range(size_fronts):
 
-        print(pareto_solutions)
+            defense_row = pareto_fronts[i]
+            max_reward = np.average(defense_row, axis=0)
+            is_efficient[i] = False
+            really_false = False
+            for other_row in pareto_fronts[is_efficient]:
+                if np.any(other_row[np.all(other_row >= max_reward, axis=1)] > max_reward):
+                    really_false = True
+                    break
+
+            if not really_false:
+                is_efficient[i] = True
+
+        # filter out the dominated fronts
+        pareto_fronts = pareto_fronts[is_efficient]
+
+
+        # print (pareto_fronts)
+        # print("{}".format(is_efficient))
+
+        return is_efficient
+
+    def minimax(self):
+        """return: A boolean array with the Pareto efficient defences"""
+
+        # get the pareto fronts
+        is_efficient = np.zeros(self.size_defs, dtype=bool)
+        normalized_results = np.zeros(shape=(self.size_defs, self.size_atts))
+
+        # calculate the normalized values for the minimax formula
+        for i in range(self.size_defs):
+            for j in range(self.size_atts):
+                minpts = np.min(self.results[i], axis=0)
+                maxpts = np.max(self.results[i], axis=0)
+                if maxpts[0] == minpts[0]:
+                    maxpts[0] += 1
+                if maxpts[1] == minpts[1]:
+                    maxpts[1] += 1
+                normalized_results[i][j] = np.sqrt(
+                    np.square((self.results[i][j][0] - minpts[0]) / (maxpts[0] - minpts[0]))
+                    + np.square((self.results[i][j][1] - minpts[1]) / (maxpts[1] - minpts[1])))
+
+        lowest_value = np.min(np.max(normalized_results, axis=1))
+        is_efficient = np.max(normalized_results, axis=1) == lowest_value
+
+        # print("-------")
+        # print("{:0.3f} {}".format(lowest_value, is_efficient))
+
+        return is_efficient
+
+    def calculate_average_distance(self, is_efficient):
+        """return: The distance to the """
+
+        # calculate the minimum and maximum of the results
+        minpts = np.min(np.min(self.results, axis=0), axis=0)
+        maxpts = np.max(np.max(self.results, axis=0), axis=0)
+        if maxpts[0] == minpts[0]:
+            maxpts[0] += 1
+        if maxpts[1] == minpts[1]:
+            maxpts[1] += 1
+
+        # select the defense strategies
+        defense_results = self.results[is_efficient]
+
+        # calculate the minimum distance for the filtered strategies
+        norm_set = np.square((defense_results - minpts) / (maxpts - minpts))
+        distances = np.average(np.sqrt(norm_set[:,:,0] + norm_set[:,:,1]), axis=1)
+        lowest_value = np.min(distances)
+
+        return lowest_value
 
     def print_graph(self):
         """Output the graph"""
@@ -269,15 +343,69 @@ class ChainState(object):
         print ("Strategy def: {}".format(self.strat_def))
         print ("Strategy att: {}".format(self.strat_att_chain))
         print ("Strategy att (cost): {}".format(self.strat_att_conn))
-        print ("Results: {}".format(self.results))
+        # print ("Results: {}".format(self.results))s
         print ("---------")
 
 # Configuration
 config = Config()
-config.num_nodes = 5
+config.num_nodes = 25
+np.set_printoptions(formatter={'float': '{: 0.3f}'.format})
 
-state = ChainState(config)
-state.generate_graph()
-state.calculate_results()
-state.print_graph()
-state.pareto_defense_actions()
+histogram_options = np.zeros(20, dtype=np.int)
+histogram_distance = np.zeros(30, dtype=np.int)
+duration_paretos = 0
+duration_minimax = 0
+distance_paretos = 0
+distance_minimax = 0
+matches = 0
+
+for i in range(1000):
+    # run the experiment
+    config.num_nodes = 20
+    state = ChainState(config)
+    state.generate_graph()
+    state.calculate_results()
+
+    # do the pareto calculation
+    start_time = time.time()
+    paretos_efficient = state.pareto_defense_actions()
+    duration_paretos += time.time() - start_time
+
+    # do the minimax calculation
+    start_time = time.time()
+    minimax_efficient = state.minimax()
+    duration_minimax += time.time() - start_time
+
+    # calculate the minimum distances
+    paretos_distance = state.calculate_average_distance(paretos_efficient)
+    minimax_distance = state.calculate_average_distance(minimax_efficient)
+    p_index = int((paretos_distance - minimax_distance) * 10 ) + 15 
+    if p_index >= 30:
+        p_index = 29
+        print ("error p = {}".format(p_index))
+    if p_index < 0:
+        p_index = 0
+        print ("error p = {}".format(p_index))
+        
+    # add the options to the histogram
+    histogram_options[np.count_nonzero(paretos_efficient) - 1] += 1
+    histogram_distance[p_index] += 1
+
+
+    # add the total matches
+    if np.any(paretos_efficient & minimax_efficient):
+        matches += 1
+
+print ("---------")
+print (matches)
+print (histogram_options)
+print (histogram_distance)
+print (duration_paretos)
+print (duration_minimax)
+
+
+# print (np.any(paretos_efficient & minimax_efficient))
+# print("-------")
+# print("{:0.3f} {} {}".format(minimax_low, minimax_efficient, np.count_nonzero(minimax_efficient)))
+# print("-------")
+# print("{:0.3f} {} {}".format(paretos_low, paretos_efficient, np.count_nonzero(paretos_efficient)))
