@@ -11,7 +11,7 @@ import time
 
 class ChainState(object):
     """Save the values in a state"""
-    def __init__(self, config):
+    def __init__(self, config, autocalc=False):
         # graph variables
         self.config = config
         self.max_con = 150
@@ -49,6 +49,11 @@ class ChainState(object):
 
         # scores
         self.results = np.zeros(shape=(self.size_defs, self.size_atts, 2))
+
+        # check if we need to automatically calculate everything
+        if autocalc:
+            self.generate_graph()
+            self.calculate_results()
 
     def generate_graph(self):
         """Genereate a new graph with the provided characteristics"""
@@ -275,11 +280,33 @@ class ChainState(object):
         # filter out the dominated fronts
         pareto_fronts = pareto_fronts[is_efficient]
 
-
-        # print (pareto_fronts)
-        # print("{}".format(is_efficient))
-
         return is_efficient
+
+    def pareto_reward_matrix(self):
+        """return: A boolean array with the Pareto efficient defences"""
+
+        # get the pareto fronts
+        pareto_fronts = np.array([self._pareto_front(score, True) for score in self.results])
+
+        # assume that all the fronts are efficient
+        is_efficient = np.ones(pareto_fronts.shape[0], dtype=bool)
+        size_fronts = len(pareto_fronts)
+        for i in range(size_fronts):
+
+            defense_row = pareto_fronts[i]
+            max_reward = np.average(defense_row, axis=0)
+            is_efficient[i] = False
+            really_false = False
+            for other_row in pareto_fronts[is_efficient]:
+                if np.any(other_row[np.all(other_row >= max_reward, axis=1)] > max_reward):
+                    really_false = True
+                    break
+
+            if not really_false:
+                is_efficient[i] = True
+
+        # filter out the dominated fronts
+        return pareto_fronts[is_efficient]
 
     def minimax(self):
         """return: A boolean array with the Pareto efficient defences"""
@@ -343,5 +370,5 @@ class ChainState(object):
         print ("Strategy def: {}".format(self.strat_def))
         print ("Strategy att: {}".format(self.strat_att_chain))
         print ("Strategy att (cost): {}".format(self.strat_att_conn))
-        print ("Results: {}".format(self.results))s
+        print ("Results: {}".format(self.results))
         print ("---------")

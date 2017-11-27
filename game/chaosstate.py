@@ -90,6 +90,8 @@ class ChaosState(State):
                     f1_matrix[(i * num_possible_moves) + j] = 4 * x_k * (1 - x_k)
                     f2_matrix[(i * num_possible_moves) + j] = (x_k + y_k) - (x_k + y_k >= 1)
 
+            np.copyto(f3_matrix, self.random_matrix)
+
             self.reward_matrix = np.stack(((f1_matrix * 1000).astype(int),
                                            (f2_matrix * 1000).astype(int),
                                            (f3_matrix * 1000).astype(int)), axis=-1)
@@ -111,6 +113,46 @@ class ChaosState(State):
         self.score_now = np.zeros(3, dtype=np.int)
         np.copyto(self.score_now,
                   self.reward_matrix[(def_action * (self.size_graph + 1)) + att_action])
+
+    def pareto_reward_matrix(self):
+        """return: A boolean array with the Pareto efficient defences"""
+
+        num_possible_moves = self.size_graph + 1
+
+        # get the indices of the valid defenses
+        indices = np.zeros(num_possible_moves, np.int)
+        for i in range(num_possible_moves):
+            indices[i] = i
+        indices = indices[self.actions_def]
+
+        # get rewards per defense move
+        truncated_scores = []
+        for i in indices:
+            reward_set = self.reward_matrix[i * num_possible_moves:(i+1) * num_possible_moves]
+            truncated_scores.append(np.unique(reward_set[self.actions_att], axis=0))
+
+        # get the pareto fronts
+        pareto_fronts = np.array([self._pareto_front(score) for score in truncated_scores])
+
+        # assume that all the fronts are efficient
+        is_efficient = np.ones(pareto_fronts.shape[0], dtype=bool)
+        size_fronts = len(pareto_fronts)
+        for i in range(size_fronts):
+
+            defense_row = pareto_fronts[i]
+            max_reward = np.average(defense_row, axis=0)
+            is_efficient[i] = False
+            really_false = False
+            for other_row in pareto_fronts[is_efficient]:
+                if np.any(other_row[np.all(other_row >= max_reward, axis=1)] > max_reward):
+                    really_false = True
+                    break
+
+            if not really_false:
+                is_efficient[i] = True
+
+
+        return pareto_fronts[is_efficient]
 
     def pareto_defense_actions(self):
         """return: A boolean array with the Pareto efficient defences"""

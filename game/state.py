@@ -67,6 +67,14 @@ class State(object):
                                         np.ones(config.num_datadir, dtype=np.int)
                                         * config.def_cost_weights[2]])
 
+        # chaos state only
+        self.random_matrix = np.zeros( (self.size_graph + 1) * (self.size_graph + 1), dtype=float)
+        for i in range(len(self.random_matrix)):
+            if (i // (self.size_graph + 1)) % 2 == 0:
+                self.random_matrix[i] = np.random.rand()
+            else:
+                self.random_matrix[i] = self.random_matrix[i-(self.size_graph + 1)]
+
         # neural network variables
         self.nn_input = np.zeros(self.size_graph + 2, dtype=np.int) # +2 for the game points
         self.actions_def = np.ones(self.size_graph + 1, dtype=bool) # +1 for do nothing
@@ -467,7 +475,6 @@ class State(object):
         self.actions_pareto_def[self.size_graph] = True
 
         return pareto_fronts[is_efficient]
-
 
     def pareto_defense_actions(self):
         """return: A boolean array with the Pareto efficient defences"""

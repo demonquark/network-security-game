@@ -17,6 +17,7 @@ import tkinter as Tk
 import numpy as np
 from state import Config, State
 from chaosstate import ChaosState
+from chainstate import ChainState
 from reader import StateReader
 
 class ModelGUI(object):
@@ -61,8 +62,12 @@ class ModelGUI(object):
         self.strvar_att_bots = Tk.StringVar()
         self.strvar_att_ratio0 = Tk.StringVar()
         self.strvar_att_ratio1 = Tk.StringVar()
+        self.strvar_att_ratio2 = Tk.StringVar()
         self.strvar_def_ratio0 = Tk.StringVar()
         self.strvar_def_ratio1 = Tk.StringVar()
+        self.strvar_def_ratio2 = Tk.StringVar()
+        self.strvar_results0 = Tk.StringVar()
+        self.strvar_results1 = Tk.StringVar()
 
         # GUI text (for translation)
         self.txt_app_title = "Pareto Network App"
@@ -105,6 +110,8 @@ class ModelGUI(object):
         self.txt_att_bot_resources = "Attacker bot resources"
         self.txt_att_ratio = "Attacker scalarization ratio"
         self.txt_def_ratio = "Defender scalarization ratio"
+        self.txt_results0 = "Possible defense moves"
+        self.txt_results1 = "Non-dominated defense moves"
 
         self.strvar_nodes.set("10")
         self.strvar_server_ratio0.set("10")
@@ -142,9 +149,12 @@ class ModelGUI(object):
         self.strvar_att_bots.set("10")
         self.strvar_att_ratio0.set("10")
         self.strvar_att_ratio1.set("10")
+        self.strvar_att_ratio2.set("10")
         self.strvar_def_ratio0.set("10")
         self.strvar_def_ratio1.set("10")
-
+        self.strvar_def_ratio2.set("10")
+        self.strvar_results0.set("-")
+        self.strvar_results1.set("-")
 
         self.strvar_game_definition.set(self.txt_game_def_options[-1])
 
@@ -154,19 +164,21 @@ class ModelGUI(object):
         self.frame_container = Tk.Frame(self.root)
         self.frame_control_panel = Tk.Frame(self.frame_container, borderwidth=1, width=150, height=450, padx=10)
         self.frame_graphs = Tk.Frame(self.frame_container, borderwidth=1, width=450, height=300)
-        self.frame_info = Tk.Frame(self.frame_container, borderwidth=1, width=450, height=150, bg="SeaGreen1")
+        self.frame_info = Tk.Frame(self.frame_container, borderwidth=1, width=450, height=150)
 
         # figures
-        self.figure0, self.ax0 = plt.subplots()
-        self.figure1, self.ax1 = plt.subplots()
+        self.figure0 = plt.figure()
+        self.figure1 = plt.figure()
+        self.ax0 = None
+        self.ax1 = None
         self.canvas_plot0 = FigureCanvasTkAgg(self.figure0, master=self.frame_graphs)
         self.canvas_plot1 = FigureCanvasTkAgg(self.figure1, master=self.frame_graphs)
         self.canvas_plot0.show()
         self.canvas_plot1.show()
 
         # results
-        self.canvas_network = Tk.Canvas(self.frame_info, width=200, height=200, bg="chartreuse")
-        self.frame_results = Tk.Frame(self.frame_info, borderwidth=1, width=200, height=200, bg="yellow")
+        self.frame_results = Tk.Frame(self.frame_info, borderwidth=1, width=200, height=200)
+        self.canvas_network = Tk.Canvas(self.frame_info, width=200, height=200)
 
         # config
         self.label_game_definition = Tk.Label(self.frame_control_panel, text=self.txt_game_definition)
@@ -257,7 +269,7 @@ class ModelGUI(object):
         Tk.Entry(self.frame_config1, textvariable=self.strvar_att_points, width=4).grid(column=1, row=18, columnspan=4, sticky='w')
         Tk.Entry(self.frame_config1, textvariable=self.strvar_def_points, width=4).grid(column=1, row=19, columnspan=4, sticky='w')
 
-        # config 1 variables
+        # config 2 variables
         Tk.Label(self.frame_config2, text=self.txt_nodes).grid(column=0, row=0, sticky='w')
         Tk.Label(self.frame_config2, text=self.txt_server_ratio).grid(column=0, row=1, sticky='w')
         Tk.Label(self.frame_config2, text=self.txt_edge_sparsity).grid(column=0, row=2, sticky='w')
@@ -293,9 +305,19 @@ class ModelGUI(object):
         Tk.Entry(self.frame_config2, textvariable=self.strvar_att_ratio0, width=2).grid(column=1, row=10, sticky='w')
         Tk.Label(self.frame_config2, text=self.txt_colon).grid(column=2, row=10, sticky='w')
         Tk.Entry(self.frame_config2, textvariable=self.strvar_att_ratio1, width=2).grid(column=3, row=10, sticky='w')
+        Tk.Label(self.frame_config2, text=self.txt_colon).grid(column=4, row=10, sticky='w')
+        Tk.Entry(self.frame_config2, textvariable=self.strvar_att_ratio2, width=2).grid(column=5, row=10, sticky='w')
         Tk.Entry(self.frame_config2, textvariable=self.strvar_def_ratio0, width=2).grid(column=1, row=11, sticky='w')
         Tk.Label(self.frame_config2, text=self.txt_colon).grid(column=2, row=11, sticky='w')
         Tk.Entry(self.frame_config2, textvariable=self.strvar_def_ratio1, width=2).grid(column=3, row=11, sticky='w')
+        Tk.Label(self.frame_config2, text=self.txt_colon).grid(column=4, row=11, sticky='w')
+        Tk.Entry(self.frame_config2, textvariable=self.strvar_def_ratio2, width=2).grid(column=5, row=11, sticky='w')
+
+        # results variables
+        Tk.Label(self.frame_results, text=self.txt_results0).grid(column=0, row=0, sticky='w')
+        Tk.Label(self.frame_results, text=self.txt_results1).grid(column=0, row=1, sticky='w')
+        self.label_results0 = Tk.Label(self.frame_results, textvariable=self.strvar_results0).grid(column=1, row=0, sticky='w')
+        self.label_results1 = Tk.Label(self.frame_results, textvariable=self.strvar_results1).grid(column=1, row=1, sticky='w')
 
         # create a state
         self.state = None
@@ -325,8 +347,8 @@ class ModelGUI(object):
         self.canvas_plot1.get_tk_widget().grid(column=1, row=0, sticky='nsew')
 
         # results
-        self.canvas_network.grid(column=0, row=0, sticky='nsew')
-        self.frame_results.grid(column=1, row=0, sticky='nsew')
+        self.frame_results.grid(column=0, row=0, sticky='nsew')
+        self.canvas_network.grid(column=1, row=0, sticky='nsew')
 
         # configuration elements
         # self.label_nodes0.grid(column=0, row=0, sticky='w')
@@ -356,10 +378,10 @@ class ModelGUI(object):
         """Update the interface based on the chosen game model"""
 
         # clear the figures
-        self.ax0.clear()
-        self.ax1.clear()
-        self.canvas_plot0.draw()
-        self.canvas_plot1.draw()
+        if self.ax0 is not None:
+            self.ax0.clear()
+        if self.ax0 is not None:
+            self.ax1.clear()
 
         # move to the next game model
         if game_model == self.txt_game_def_options[0]:
@@ -374,17 +396,17 @@ class ModelGUI(object):
 
         # Configuration
         config = Config()
-        config.num_service = 2
-        config.num_viruses = 2
+        config.num_service = 6
+        config.num_viruses = 6
         config.num_datadir = 0
-        config.num_nodes = 4
+        config.num_nodes = 12
         config.sparcity = 0.1
         config.low_value_nodes = [[1, 100], [50, 150], [150, 250]]
         config.high_value_nodes = [[200, 300], [450, 650], [60, 80]]
 
         # move to the next game model
         if self.strvar_game_definition.get() == self.txt_game_def_options[0]:
-            self.state = ChainState(config)
+            self.state = ChainState(config, True)
             self.ax0 = self.plot_graph0(self.canvas_plot0, self.figure0, self.ax0, False)
             self.ax1 = self.plot_graph0(self.canvas_plot1, self.figure1, self.ax1, True)
         elif self.strvar_game_definition.get() == self.txt_game_def_options[1]:
@@ -400,20 +422,23 @@ class ModelGUI(object):
         """Graph the plot in a canvas"""
 
         #call the clear method on your axes
-        ax.clear()
+        if ax is not None:
+            ax.clear()
         ax = figure.add_subplot(111)
+
+        # calculate the data points
+        data_points = self.state.results
+        if calculate_pareto:
+            data_points = self.state.pareto_reward_matrix()
 
         # define color
         a_map = plt.get_cmap('brg')
-        cNorm  = colors.Normalize(vmin=0, vmax=self.state.size_graph)
+        cNorm  = colors.Normalize(vmin=0, vmax=len(data_points))
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=a_map)
 
         # plot the the data
-        for i in range(self.state.size_graph):
-            if calculate_pareto:
-                pareto_front = self.state._pareto_front(self.state.reward_matrix[i * self.state.size_graph:(i+1) * self.state.size_graph])
-            else:
-                pareto_front = self.state.reward_matrix[i * self.state.size_graph:(i+1) * self.state.size_graph]
+        for i in range(len(data_points)):
+            pareto_front = data_points[i]
             temp_x = pareto_front[:,0]
             temp_y = pareto_front[:,1]
             ax.scatter(temp_x, temp_y, color=scalarMap.to_rgba(i))
@@ -422,12 +447,18 @@ class ModelGUI(object):
         ax.grid()
         canvas.draw()
 
+        if calculate_pareto:
+            self.strvar_results1.set("{}".format(len(data_points)))
+        else:
+            self.strvar_results0.set("{}".format(len(data_points)))
+
         return ax
 
     def plot_graph1(self, canvas, figure, ax, calculate_pareto=False):
         """Graph the plot in a canvas"""
         #call the clear method on your axes
-        ax.clear()
+        if ax is not None:
+            ax.clear()
         ax = figure.add_subplot(111, projection='3d')
 
         # calculate the data points
@@ -452,33 +483,49 @@ class ModelGUI(object):
         ax.grid()
         canvas.draw()
 
+        if calculate_pareto:
+            self.strvar_results1.set("{}".format(len(data_points)))
+        else:
+            self.strvar_results0.set("{}".format(len(data_points)))
+
         return ax
 
     def plot_graph2(self, canvas, figure, ax, calculate_pareto=False):
         """Graph the plot in a canvas"""
 
         #call the clear method on your axes
-        ax.clear()
-        ax = figure.add_subplot(111)
+        if ax is not None:
+            ax.clear()
+        ax = figure.add_subplot(111, projection='3d')
+
+        # calculate the data points
+        data_points = []
+        for i in range(self.state.size_graph):
+            data_points.append(self.state.reward_matrix[i * (self.state.size_graph + 1):(i+1) * (self.state.size_graph + 1)])
+        if calculate_pareto:
+            data_points = self.state.pareto_reward_matrix()
 
         # define color
         a_map = plt.get_cmap('brg')
-        cNorm  = colors.Normalize(vmin=0, vmax=self.state.size_graph)
+        cNorm  = colors.Normalize(vmin=0, vmax=len(data_points))
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=a_map)
 
         # plot the the data
-        for i in range(self.state.size_graph):
-            if calculate_pareto:
-                pareto_front = self.state._pareto_front(self.state.reward_matrix[i * self.state.size_graph:(i+1) * self.state.size_graph])
-            else:
-                pareto_front = self.state.reward_matrix[i * self.state.size_graph:(i+1) * self.state.size_graph]
+        for i in range(len(data_points)):
+            pareto_front = data_points[i]
             temp_x = pareto_front[:,0]
             temp_y = pareto_front[:,1]
-            ax.scatter(temp_x, temp_y, color=scalarMap.to_rgba(i))
+            temp_z = pareto_front[:,2]
+            ax.scatter(temp_x, temp_y, temp_z, color=scalarMap.to_rgba(i))
 
         #call the draw method on your canvas
         ax.grid()
         canvas.draw()
+
+        if calculate_pareto:
+            self.strvar_results1.set("{}".format(len(data_points)))
+        else:
+            self.strvar_results0.set("{}".format(len(data_points)))
 
         return ax
 
