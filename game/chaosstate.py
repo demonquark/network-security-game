@@ -243,7 +243,7 @@ class ChaosState(State):
                 if scalarized_defense_scores[i] == minimum_score:
                     self.actions_pareto_def[def_indices[i]] = True
         elif scalarization_approach == 6:
-            #  Approach 6 (GUESS_SCALARIZATION) use STOM to determine the scalarized value
+            #  Approach 6 (GUESS_SCALARIZATION) use GUESS to determine the scalarized value
             scalarized_defense_scores = np.zeros(len(def_indices), np.int)
             goal_vector[2] = 1
             for i in range(len(def_indices)):

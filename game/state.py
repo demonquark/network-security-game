@@ -409,6 +409,66 @@ class State(object):
             if self.nn_input[-1] < self.def_cost[i]:
                 self.actions_def[i:self.size_graph:self.size_graph_cols] = 0
 
+    def pareto_reward_matrix(self):
+        """return: A boolean array with the Pareto efficient defences"""
+
+        self.actions_att[self.size_graph] = False
+        self.actions_def[self.size_graph] = False
+
+        if  not (np.any(self.actions_att) and np.any(self.actions_att)):
+            np.copyto(self.actions_pareto_def, self.actions_def)
+            return self.actions_pareto_def
+
+        # get the indices of the valid defenses
+        indices = np.zeros(self.size_graph + 1, np.int)
+        for i in range(self.size_graph + 1):
+            indices[i] = i
+        indices = indices[self.actions_def]
+
+        # get the indices of the valid attacks
+        indices2 = np.zeros(self.size_graph + 1, np.int)
+        for i in range(self.size_graph + 1):
+            indices2[i] = i
+        indices2 = indices2[self.actions_att]
+
+        # get the reward matrix
+        scores = self.reset_reward_matrix()
+        scores = scores[self.actions_def]
+        truncated_scores = []
+        for i, j in enumerate(scores):
+            truncated_scores.append(np.unique(j[self.actions_att], axis=0))
+
+        # calculate the pareto fronts
+        pareto_fronts = np.array([self._pareto_front(score) for score in truncated_scores])
+
+        # assume that all the fronts are efficient
+        is_efficient = np.ones(pareto_fronts.shape[0], dtype=bool)
+        size_fronts = len(pareto_fronts)
+        for i in range(size_fronts):
+
+            defense_row = pareto_fronts[i]
+            max_reward = np.average(defense_row, axis=0)
+            is_efficient[i] = False
+            really_false = False
+            for other_row in pareto_fronts[is_efficient]:
+                if np.any(other_row[np.all(other_row >= max_reward, axis=1)] > max_reward):
+                    really_false = True
+                    break
+
+            if not really_false:
+                is_efficient[i] = True
+
+        self.actions_att[self.size_graph] = True
+        self.actions_def[self.size_graph] = True
+     
+        self.actions_pareto_def = np.zeros(self.size_graph + 1, dtype=bool) # +1 for do nothing
+        for i, j in enumerate(indices[is_efficient]):
+            self.actions_pareto_def[j] = True
+        self.actions_pareto_def[self.size_graph] = True
+
+        return pareto_fronts[is_efficient]
+
+
     def pareto_defense_actions(self):
         """return: A boolean array with the Pareto efficient defences"""
 
