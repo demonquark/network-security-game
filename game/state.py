@@ -31,7 +31,18 @@ class Config(object):
 
     # define scalarization weights
     scalarization = np.array([6, 2, 2], dtype=np.int)
+    scalarize_att = np.array([6, 2, 2], dtype=np.int)
     offset = np.zeros(3, dtype=np.int)
+    size_bots = 60
+
+    # for chain state
+    cap_values = [50, 100]
+    max_lfr = 0.15
+    alpha = 1
+    beta = 0.6
+    size_def_strategies = 12
+    size_att_strategies = 12
+
 
 class State(object):
     """Save the values in a state"""

@@ -15,15 +15,15 @@ class ChainState(object):
         # graph variables
         self.config = config
         self.max_con = 150
-        self.cap_values = [50, 100]
-        self.max_lfr = 0.15
-        self.alpha = 1
-        self.beta = 0.6
+        self.cap_values = config.cap_values
+        self.max_lfr = config.max_lfr
+        self.alpha = config.alpha
+        self.beta = config.beta
         self.gamma = 1
 
         # sizes
-        self.size_defs = 12
-        self.size_atts = 12
+        self.size_defs = config.size_def_strategies
+        self.size_atts = config.size_att_strategies
         self.size_nodes = config.num_nodes
         self.size_edges = int((self.size_nodes * (self.size_nodes - 1)) / 2)
 
