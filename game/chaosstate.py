@@ -215,10 +215,13 @@ class ChaosState(State):
         
         # get the goal vector
         goal_vector = np.zeros(3, dtype=np.int)
-        scalarization_ratio = int(1000 * (self.config.scalarization[0] / self.config.scalarization[1]))
-        goal_vector[0] = 1000 if scalarization_ratio >= 1000 else scalarization_ratio
-        goal_vector[1] = 1000 if scalarization_ratio <= 1000 else scalarization_ratio
-
+        scalarization_ratio = np.min(self.config.scalarization)
+        for i in range(len(goal_vector)):
+            goal_vector [i] = int(1000 * self.config.scalarization[i] / scalarization_ratio)  
+        # goal_vector[0] = int(1000 * self.config.scalarization / scalarization_ratio)
+        # goal_vector[1] = int(1000 * self.config.scalarization / scalarization_ratio)
+        # goal_vector[2] = 1000 if scalarization_ratio >= 1000 else scalarization_ratio
+ 
         # scalarize the rewards for all the attacks made on valid defenses
         scalarized_attack_scores = np.zeros(len(att_indices), np.int)
         worst_case_scores = np.zeros(len(def_indices) * 3, np.int).reshape(len(def_indices), 3)

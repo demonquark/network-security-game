@@ -113,6 +113,8 @@ class ModelGUI(object):
         self.txt_results0 = "Possible defense moves"
         self.txt_results1 = "Non-dominated defense moves"
         self.txt_load_file = "Load Game from existing file"
+        self.txt_before_optimization = "before optimization"
+        self.txt_after_optimization = "after optimization"
 
         self.strvar_nodes.set("6")
         self.strvar_server_ratio0.set("1")
@@ -457,12 +459,12 @@ class ModelGUI(object):
                 data_points.append(self.state.reward_matrix[i * (self.state.size_graph + 1):(i+1) * (self.state.size_graph + 1)])
 
         # show the graphs
-        self.ax0 = self.plot_graph(self.figure0, self.ax0, data_points, graph_is_3d, False)
-        self.ax1 = self.plot_graph(self.figure1, self.ax1, data_points, graph_is_3d, True)
+        self.ax0 = self.plot_graph(self.figure0, self.ax0, data_points, self.txt_before_optimization, graph_is_3d, False)
+        self.ax1 = self.plot_graph(self.figure1, self.ax1, data_points, self.txt_after_optimization, graph_is_3d, True)
         self.canvas_plot0.draw()
         self.canvas_plot1.draw()
 
-    def plot_graph(self, figure, ax, data_points, graph_is_3d=True, calculate_pareto=False):
+    def plot_graph(self, figure, ax, data_points, axis_title, graph_is_3d=True, calculate_pareto=False):
         """Graph the plot in a canvas"""
 
         #call the clear method on your axes
@@ -475,6 +477,12 @@ class ModelGUI(object):
             ax = figure.add_subplot(111, projection='3d')
         else:
             ax = figure.add_subplot(111)
+
+        ax.set_title(axis_title)
+        ax.set_xlabel('f_1')
+        ax.set_ylabel('f_2')
+        if graph_is_3d:
+            ax.set_zlabel('f_3')
 
         # calculate the data points
         if calculate_pareto:
