@@ -305,7 +305,7 @@ config.num_viruses = 3
 config.num_datadir = 0
 config.num_nodes = 3
 config.offset = np.zeros(3, dtype=np.int)
-config.scalarization = np.array([3, 7, 0], dtype=np.int)
+config.scalarization = np.array([3, 7, 2], dtype=np.int)
 
 node_options = [50, 100, 250, 500]
 points_options = [60, 60, 60, 60]

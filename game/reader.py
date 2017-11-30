@@ -48,6 +48,7 @@ class StateReader(object):
             writer.writerow(state.nn_input)
             writer.writerow(state.graph_edges)
             writer.writerow(state.graph_weights)
+            writer.writerow(state.reward_matrix.tolist())
 
     def read_state(self, file_name=None, default_reward_matrix=None):
         """Read a state file"""
@@ -66,7 +67,7 @@ class StateReader(object):
             reader = csv.reader(csvfile, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
             content = list(reader)
 
-        if isinstance(content, list) and len(content) == 18:
+        if isinstance(content, list) and len(content) == 19:
             is_basic_state = (int(content[0][0]) == 0)
             config.num_service = int(content[1][0])
             config.num_viruses = int(content[2][0])
@@ -90,6 +91,10 @@ class StateReader(object):
             default_input = np.array(content[15], dtype=np.int)
             default_edges = self.__list_of_list_from_string_list(content[16])
             default_graph_weights = np.array(content[17], dtype=np.int)
+
+            if default_reward_matrix is None and not is_basic_state:
+                intial_list = self.__list_of_list_from_string_list(content[18])
+                default_reward_matrix = np.array(intial_list)
 
             if is_basic_state:
                 state = State(config, default_input, default_edges, default_graph_weights)
