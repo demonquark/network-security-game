@@ -201,52 +201,23 @@ class ChaosState(State):
 
         return self.actions_pareto_def
 
-    def scalarized_attack_actions(self, att_vector, scalarization_approach=0):
+    def scalarized_attack_actions(self, action_att, scalarization_approach=0):
         """Return a set of attack actions"""
-        
-        # choose an attack action
-        num_moves = self.size_graph + 1
-        
+
         # get the indices of the valid defenses
-        att_moves = np.zeros(num_moves, dtype=np.int)
-        att_indices = np.zeros(num_moves, dtype=np.int)
+        num_moves = self.size_graph + 1
         def_indices = np.zeros(num_moves, dtype=np.int)
         for i in range(num_moves):
-            att_indices[i] = i
             def_indices[i] = i
-        att_indices = att_indices[self.actions_att]
         def_indices = def_indices[self.actions_def]
-        att_moves = att_moves[self.actions_def]
-        
+
         # get the goal vector
-        goal_vector = np.zeros(len(self.config.scalarization), dtype=np.int)
-        np.copyto(goal_vector, self.config.scalarization)
- 
-        # # scalarize the rewards for all the attacks made on valid defenses
-        # scalarized_attack_scores = np.zeros(len(att_indices), dtype=np.int)
-        worst_case_scores = np.zeros(len(def_indices) * 3, dtype=np.int).reshape(len(def_indices), 3)
-        # for i in range(len(def_indices)):
-        #     for j in range(len(att_indices)):
-        #         # scalarization is simple dot product with the attack reward
-        #         scalarized_attack_scores[j] = np.dot(att_vector,
-        #                                              self.reward_matrix[(def_indices[i] * num_moves) + att_indices[j]])
-        #     # save the vector reward for the attack with the lowest scalarized reward
-        #     att_index = att_indices[np.argmin(scalarized_attack_scores)]
-        #     worst_case_scores[i] = self.reward_matrix[(def_indices[i] * num_moves) + att_index]
+        goal_vector = np.multiply(int(1000 / np.sum(self.config.scalarization)), self.config.scalarization)
 
-        # determine the attacker's choice for each defense move based on the attacker scalarization
+        # get the rewards for the attacks made on valid defenses
         worst_case_scores = np.zeros(len(def_indices) * 3, dtype=np.int).reshape(len(def_indices), 3)
-        att_mag = np.sqrt(np.einsum('i,i', att_vector, att_vector))
-        cosine = np.zeros(len(att_indices), dtype=float)
         for i in range(len(def_indices)):
-            for j in range(len(att_indices)):
-                score = self.reward_matrix[(def_indices[i] * num_moves) + att_indices[j]]
-                cosine[j] = np.absolute(np.dot(att_vector, score))
-                # cosine[j] = np.absolute(np.dot(att_vector, score)
-                #                         / (att_mag * np.sqrt(np.einsum('i,i', score, score))))
-            att_moves[i] = att_indices[np.argmax(cosine)]
-            worst_case_scores[i] = self.reward_matrix[(def_indices[i] * num_moves) + att_moves[i]]
-
+            worst_case_scores[i] = self.reward_matrix[(def_indices[i] * num_moves) + action_att]
         # remove the non-optimal defense moves
         self.actions_pareto_def = np.zeros(num_moves, dtype=bool)
         if scalarization_approach < 2:
@@ -267,7 +238,7 @@ class ChaosState(State):
                 for i in range(len(def_indices)):
                     if self.actions_pareto_def[def_indices[i]]:
                         # the cosine of the angle is the dot product divided by the distances
-                        score = self.reward_matrix[(def_indices[i] * num_moves) + att_moves[i]]
+                        score = worst_case_scores[i]
                         cosine[i] = np.absolute(np.dot(goal_vector,score) / (mag_goal * np.sqrt(np.einsum('i,i', score, score))))
                     else:
                         cosine[i] = 0
@@ -300,9 +271,8 @@ class ChaosState(State):
         elif scalarization_approach == 6:
             #  Approach 6 (GUESS_SCALARIZATION) use GUESS to determine the scalarized value
             scalarized_defense_scores = np.zeros(len(def_indices), np.int)
-            goal_vector[2] = 1
             for i in range(len(def_indices)):
-                scalarized_defense_scores[i] = np.max(np.absolute(np.divide(worst_case_scores[i,:], goal_vector)))
+                scalarized_defense_scores[i] = np.max(np.absolute(np.divide(np.subtract(goal_vector, worst_case_scores[i,:]), goal_vector)))
             minimum_score = np.min(scalarized_defense_scores)
             for i in range(len(def_indices)):
                 if scalarized_defense_scores[i] == minimum_score:

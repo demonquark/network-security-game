@@ -98,7 +98,7 @@ import matplotlib.cm as cmx
 #     for j in range (50):
 #         duration = 0
 #         for i in range (10):
-#             duration += run_state.scalarized_attack_actions(np.array([7, 3, 0], dtype=np.int), k)
+#             duration += run_state.scalarized_attack_actions(run_state.size_graph, k)
 #         log_text += "{0}\n".format(duration)
 
 # print (log_text)

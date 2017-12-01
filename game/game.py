@@ -108,8 +108,7 @@ def run_game(epsilon, state, model, log_object, final_offset, normalizer,
     action_att = 0
     reward_sum = 0
     vector_reward_sum = np.zeros(3, dtype=np.int)
-    attacker_scalarization = np.array([3, 7, 2], dtype=np.int)
-    # np.copyto(attacker_scalarization, state.config.scalarization)
+    attacker_scalarization = np.array([1, 1, 1], dtype=np.int)
     att_mag = np.sqrt(np.einsum('i,i', attacker_scalarization, attacker_scalarization))
     nn_input_old = np.zeros(state.size_graph + 2, dtype=np.int) # +2 for the game points
 
@@ -128,10 +127,41 @@ def run_game(epsilon, state, model, log_object, final_offset, normalizer,
         # find the Q-values for the state-action pairs
         q_table = model.predict(state.nn_input.reshape(1, state.nn_input.size), batch_size=1)
 
+        # guess an attack action
+        # determine the valid attack actions
+        num_moves = state.size_graph + 1
+        indices = np.zeros(num_moves, dtype=np.int)
+        for i in range(num_moves):
+            indices[i] = i
+        indices = indices[state.actions_att]
+
+        # assume a random defense action
+        assumed_def = state.size_graph
+        for j in range(100):
+            assumed_def = np.random.randint(0, state.size_graph)
+            if state.actions_pareto_def[assumed_def] == 1:
+                break
+
+        # determine the attacker reward for the assumed defense action
+        rew_att = np.zeros(num_moves * 3, np.int).reshape(num_moves, 3)
+        np.copyto(rew_att, state.reward_matrix[assumed_def * num_moves:(assumed_def+1) * num_moves])
+
+        # calculate the cosine of the angle between the attacker scalarization and the rewards
+        cosine = np.zeros(len(indices), dtype=float)
+        for i in range(len(indices)):
+            cosine[i] = np.absolute(np.dot(attacker_scalarization, rew_att[indices[i]])
+                                    / (att_mag * np.sqrt(np.einsum('i,i', rew_att[indices[i]], rew_att[indices[i]]))))
+
+        # choose the strategy closest to the attacker scalarization
+        action_att = indices[np.argmax(cosine)]
+
+        # determine the valid defense actions based on the model and algorithm
         if isinstance(state, ChaosState):
+
             # determine the valid moves by using the chaos state method
-            state.scalarized_attack_actions(attacker_scalarization, run_type)
+            state.scalarized_attack_actions(action_att, run_type)
         else:
+
             if run_type == 2:
                 # use the precalculated pareto front for the first move
                 if steps == 0 and pareto_filter is not None:
@@ -141,6 +171,10 @@ def run_game(epsilon, state, model, log_object, final_offset, normalizer,
             else:
                 # use entire set
                 state.actions_pareto_def = state.actions_def
+
+        # choose an actual attack action
+        if np.random.rand() < (0.45 if run_type == 4 else 0.3):
+            action_att = indices[np.random.randint(0, len(indices))]
 
         # choose a defense action
         if default_action >= 0:
@@ -156,29 +190,6 @@ def run_game(epsilon, state, model, log_object, final_offset, normalizer,
         else:
             # from Q(s,a) values
             action_def = np.argmax(np.multiply(state.actions_pareto_def, q_table[0] - min(q_table[0])))
-
-        # determine the valid attack actions
-        size_att = state.size_graph + 1
-        indices = np.zeros(size_att, dtype=np.int)
-        for i in range(size_att):
-            indices[i] = i
-        indices = indices[state.actions_att]
-
-        # determine the attacker reward for the chosen defense action
-        rew_att = np.zeros(size_att * 3, np.int).reshape(size_att, 3)
-        np.copyto(rew_att, state.reward_matrix[action_def * size_att:(action_def+1) * size_att])
-
-        # calculate the cosine of the angle between the attacker scalarization and the rewards
-        cosine = np.zeros(len(indices), dtype=float)
-        for i in range(len(indices)):
-            cosine[i] = np.absolute(np.dot(attacker_scalarization, rew_att[indices[i]])
-                                    / (att_mag * np.sqrt(np.einsum('i,i', rew_att[indices[i]], rew_att[indices[i]]))))
-
-        # choose the strategy closest to the attacker scalarization
-        if np.random.rand() < 0.9:
-            action_att = indices[np.argmax(cosine)]
-        else:
-            action_att = indices[np.random.randint(0, len(indices))]
 
         # Take actions, observe new state
         np.copyto(nn_input_old, state.nn_input)
@@ -298,8 +309,8 @@ np.set_printoptions(formatter={'float': '{: 0.3f}'.format})
 
 # Configuration
 config = Config()
-config.num_service = 2
-config.num_viruses = 2
+config.num_service = 3
+config.num_viruses = 3
 config.num_datadir = 0
 config.num_nodes = 3
 config.offset = np.zeros(3, dtype=np.int)
@@ -337,7 +348,8 @@ for node_count in enumerate(node_options):
         # read the state and generate the starting pareto front
         in_reader = StateReader(reader_files[(node_count[0] * len(sparse_options)) + sparsity[0]])
         for k in range(7):
-            run_epochs(in_reader, epochs_options[node_count[0]], k)
+            if not (k == 2 or k == 1):
+                run_epochs(in_reader, epochs_options[node_count[0]], k)
 
 
 # config.scalarization = np.array([0, 0, 10], dtype=np.int)
