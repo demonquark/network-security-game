@@ -306,7 +306,7 @@ class ChainState(object):
                 is_efficient[i] = True
 
         # filter out the dominated fronts
-        return pareto_fronts[is_efficient]
+        return pareto_fronts[is_efficient], is_efficient
 
     def minimax(self):
         """return: A boolean array with the Pareto efficient defences"""

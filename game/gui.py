@@ -484,25 +484,36 @@ class ModelGUI(object):
         if graph_is_3d:
             ax.set_zlabel('f_3')
 
-        # calculate the data points
+        #color range is the same for all solutions (for pareto set and all solution set)
+        max_color_range = len(data_points)
         if calculate_pareto:
-            data_points = self.state.pareto_reward_matrix()
+            data_points, set_index = self.state.pareto_reward_matrix()
+            set_in = [k for k, x in enumerate(set_index) if x]
+            # print("Set_Index: {}".format(set_index))
+
 
         # define color
         a_map = plt.get_cmap('brg')
-        cNorm  = colors.Normalize(vmin=0, vmax=len(data_points))
+        cNorm  = colors.Normalize(vmin=0, vmax=max_color_range)
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=a_map)
 
         # plot the the data
         for i in range(len(data_points)):
-            pareto_front = data_points[i]
+            
+            # get the color index for the data set
+            color_index = i
+            if calculate_pareto:
+                color_index = set_in[i]
+
+            # get the points for the data set
+            pareto_front = data_points[i]            
             temp_x = pareto_front[:,0]
             temp_y = pareto_front[:,1]
             if graph_is_3d:
                 temp_z = pareto_front[:,2]
-                ax.scatter(temp_x, temp_y, temp_z, color=scalarMap.to_rgba(i))
+                ax.scatter(temp_x, temp_y, temp_z, color=scalarMap.to_rgba(color_index))
             else:
-                ax.scatter(temp_x, temp_y, color=scalarMap.to_rgba(i))
+                ax.scatter(temp_x, temp_y, color=scalarMap.to_rgba(color_index))
 
         #call the draw method on your canvas
         ax.grid()

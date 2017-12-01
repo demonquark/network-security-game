@@ -151,8 +151,11 @@ class ChaosState(State):
             if not really_false:
                 is_efficient[i] = True
 
+        pareto_indices_for_gui = np.zeros(num_possible_moves, dtype=bool) # +1 for do nothing
+        for i, j in enumerate(indices[is_efficient]):
+            pareto_indices_for_gui[j] = True
 
-        return pareto_fronts[is_efficient]
+        return pareto_fronts[is_efficient], pareto_indices_for_gui
 
     def pareto_defense_actions(self):
         """return: A boolean array with the Pareto efficient defences"""
@@ -198,76 +201,83 @@ class ChaosState(State):
 
         return self.actions_pareto_def
 
-    def scalarized_attack_actions(self, attacker_scalarization, scalarization_approach=0):
+    def scalarized_attack_actions(self, att_vector, scalarization_approach=0):
         """Return a set of attack actions"""
         
         # choose an attack action
-        num_possible_moves = self.size_graph + 1
+        num_moves = self.size_graph + 1
         
         # get the indices of the valid defenses
-        att_indices = np.zeros(num_possible_moves, dtype=np.int)
-        def_indices = np.zeros(num_possible_moves, dtype=np.int)
-        for i in range(num_possible_moves):
+        att_moves = np.zeros(num_moves, dtype=np.int)
+        att_indices = np.zeros(num_moves, dtype=np.int)
+        def_indices = np.zeros(num_moves, dtype=np.int)
+        for i in range(num_moves):
             att_indices[i] = i
             def_indices[i] = i
         att_indices = att_indices[self.actions_att]
         def_indices = def_indices[self.actions_def]
+        att_moves = att_moves[self.actions_def]
         
         # get the goal vector
-        goal_vector = np.zeros(3, dtype=np.int)
-        scalarization_ratio = np.min(self.config.scalarization)
-        for i in range(len(goal_vector)):
-            goal_vector [i] = int(1000 * self.config.scalarization[i] / scalarization_ratio)  
-        # goal_vector[0] = int(1000 * self.config.scalarization / scalarization_ratio)
-        # goal_vector[1] = int(1000 * self.config.scalarization / scalarization_ratio)
-        # goal_vector[2] = 1000 if scalarization_ratio >= 1000 else scalarization_ratio
+        goal_vector = np.zeros(len(self.config.scalarization), dtype=np.int)
+        np.copyto(goal_vector, self.config.scalarization)
  
-        # scalarize the rewards for all the attacks made on valid defenses
-        scalarized_attack_scores = np.zeros(len(att_indices), np.int)
-        worst_case_scores = np.zeros(len(def_indices) * 3, np.int).reshape(len(def_indices), 3)
+        # # scalarize the rewards for all the attacks made on valid defenses
+        # scalarized_attack_scores = np.zeros(len(att_indices), dtype=np.int)
+        worst_case_scores = np.zeros(len(def_indices) * 3, dtype=np.int).reshape(len(def_indices), 3)
+        # for i in range(len(def_indices)):
+        #     for j in range(len(att_indices)):
+        #         # scalarization is simple dot product with the attack reward
+        #         scalarized_attack_scores[j] = np.dot(att_vector,
+        #                                              self.reward_matrix[(def_indices[i] * num_moves) + att_indices[j]])
+        #     # save the vector reward for the attack with the lowest scalarized reward
+        #     att_index = att_indices[np.argmin(scalarized_attack_scores)]
+        #     worst_case_scores[i] = self.reward_matrix[(def_indices[i] * num_moves) + att_index]
+
+        # determine the attacker's choice for each defense move based on the attacker scalarization
+        worst_case_scores = np.zeros(len(def_indices) * 3, dtype=np.int).reshape(len(def_indices), 3)
+        att_mag = np.sqrt(np.einsum('i,i', att_vector, att_vector))
+        cosine = np.zeros(len(att_indices), dtype=float)
         for i in range(len(def_indices)):
             for j in range(len(att_indices)):
-                # scalarization is simple dot product with the attack reward
-                scalarized_attack_scores[j] = np.dot(attacker_scalarization,
-                                                     self.reward_matrix[(def_indices[i] * num_possible_moves) + att_indices[j]])
-            # save the vector reward for the attack with the lowest scalarized reward
-            att_index = att_indices[np.argmin(scalarized_attack_scores)]
-            worst_case_scores[i] = self.reward_matrix[(def_indices[i] * num_possible_moves) + att_index]
-        
+                score = self.reward_matrix[(def_indices[i] * num_moves) + att_indices[j]]
+                cosine[j] = np.absolute(np.dot(att_vector, score))
+                # cosine[j] = np.absolute(np.dot(att_vector, score)
+                #                         / (att_mag * np.sqrt(np.einsum('i,i', score, score))))
+            att_moves[i] = att_indices[np.argmax(cosine)]
+            worst_case_scores[i] = self.reward_matrix[(def_indices[i] * num_moves) + att_moves[i]]
+
         # remove the non-optimal defense moves
-        self.actions_pareto_def = np.zeros(num_possible_moves, dtype=bool)
+        self.actions_pareto_def = np.zeros(num_moves, dtype=bool)
         if scalarization_approach < 2:
             # Approach 0 (RANDOM) and 1 (Q-LEARNING) use the entire defense set
             np.copyto(self.actions_pareto_def, self.actions_def)
         elif scalarization_approach == 2 or scalarization_approach == 3:
-            # Approach 2 (PARETO_Q_LEARNING) and 3 (TARGETED_PARETO_Q_LEARNING) require that we calculate the Pareto Fronts
-            indices_filter = self._pareto_front_filter(worst_case_scores, True)
-            def_indices = def_indices[indices_filter]
-            worst_case_scores = worst_case_scores[indices_filter]
+            # Approach 2 (PARETO_Q_LEARNING) just use the front (do nothing)
+            self.actions_pareto_def = self.pareto_defense_actions()
 
-            # Approach 2 (PARETO_Q_LEARNING) just use the front
-            if scalarization_approach == 2:
+            # Approach 3 (TARGET_PARETO_Q_LEARNING) use the pareto front closest to the goal vector
+            if scalarization_approach == 3:
+                # calculate the magnitude and cos of the angle with the goal vector
+                mag_goal = np.sqrt(np.einsum('i,i', goal_vector, goal_vector))
+                score = np.zeros(len(self.config.scalarization), dtype=np.int)
+                cosine = np.zeros(len(def_indices), dtype=float)
+
+                # go through the pareto fronts and calculate the angle with the target vector
                 for i in range(len(def_indices)):
-                    self.actions_pareto_def[def_indices[i]] = True
-            else:
-            # Approach 3 (TARGETED_PARETO_Q_LEARNING) only move the points closest to the target vector
-                # the goal vector is the inverse of the weight vector
-                goal_vector = np.zeros(3, np.int)
-                goal_vector[0] = self.config.scalarization[1]
-                goal_vector[1] = self.config.scalarization[0] * -1
+                    if self.actions_pareto_def[def_indices[i]]:
+                        # the cosine of the angle is the dot product divided by the distances
+                        score = self.reward_matrix[(def_indices[i] * num_moves) + att_moves[i]]
+                        cosine[i] = np.absolute(np.dot(goal_vector,score) / (mag_goal * np.sqrt(np.einsum('i,i', score, score))))
+                    else:
+                        cosine[i] = 0
 
                 # find the pareto solution nearest to the goal vector
-                distance_to_goal_vector = np.zeros(len(def_indices), np.int)
+                cos_max = np.max(cosine)
+
+                # save the pareto solution as a valid option
                 for i in range(len(def_indices)):
-                    distance_to_goal_vector[i] = np.absolute(np.dot(goal_vector, worst_case_scores[i,:]))
-                min_distance = np.min(distance_to_goal_vector)
-    
-                # save the pareto solution as the valid
-                for i in range(len(def_indices)):
-                    if distance_to_goal_vector[i] == min_distance:
-                        # print(worst_case_scores[i])
-                        self.actions_pareto_def[def_indices[i]] = True
-                # print("------------")
+                    self.actions_pareto_def[def_indices[i]] = self.actions_pareto_def[def_indices[i]] and cosine[i] == cos_max
 
         elif scalarization_approach == 4:
             #  Approach 4 (SCALARIZATION) take the highest scalarized value

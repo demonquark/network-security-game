@@ -108,14 +108,16 @@ def run_game(epsilon, state, model, log_object, final_offset, normalizer,
     action_att = 0
     reward_sum = 0
     vector_reward_sum = np.zeros(3, dtype=np.int)
-    attacker_scalarization = np.array([7, 3, 0], dtype=np.int)
+    attacker_scalarization = np.array([3, 7, 2], dtype=np.int)
+    # np.copyto(attacker_scalarization, state.config.scalarization)
+    att_mag = np.sqrt(np.einsum('i,i', attacker_scalarization, attacker_scalarization))
     nn_input_old = np.zeros(state.size_graph + 2, dtype=np.int) # +2 for the game points
 
     # run_type == 0 (RANDOM) means random defender actions
     if run_type == 0:
         epsilon = 1
 
-    # loggin variables
+    # log variables
     log_object.chosen_action = ""
     check_one = np.zeros(3, dtype=float)
     check_two = np.zeros(3, dtype=float)
@@ -145,43 +147,38 @@ def run_game(epsilon, state, model, log_object, final_offset, normalizer,
             # default action assigned means we just want to run a single action once
             action_def = default_action
             steps = 200
-        elif random.random() < epsilon: 
+        elif np.random.rand() < epsilon:
             # random action
             for j in range(100):
                 action_def = np.random.randint(0, state.size_graph)
                 if state.actions_pareto_def[action_def] == 1:
                     break
-        else: 
+        else:
             # from Q(s,a) values
             action_def = np.argmax(np.multiply(state.actions_pareto_def, q_table[0] - min(q_table[0])))
 
-        # choose an attack action
-        num_possible_moves = state.size_graph + 1
-        indices = np.zeros(num_possible_moves, np.int)
-        for i in range(num_possible_moves):
+        # determine the valid attack actions
+        size_att = state.size_graph + 1
+        indices = np.zeros(size_att, dtype=np.int)
+        for i in range(size_att):
             indices[i] = i
         indices = indices[state.actions_att]
-        
-        reward_set = np.zeros(num_possible_moves * 3, np.int).reshape(num_possible_moves, 3)
-        np.copyto(reward_set, state.reward_matrix[action_def * num_possible_moves:(action_def+1) * num_possible_moves])
 
-        preferred_attacks = np.zeros(len(indices), np.int)
-        output_text = ""
+        # determine the attacker reward for the chosen defense action
+        rew_att = np.zeros(size_att * 3, np.int).reshape(size_att, 3)
+        np.copyto(rew_att, state.reward_matrix[action_def * size_att:(action_def+1) * size_att])
+
+        # calculate the cosine of the angle between the attacker scalarization and the rewards
+        cosine = np.zeros(len(indices), dtype=float)
         for i in range(len(indices)):
-            preferred_attacks[i] = np.dot(attacker_scalarization, reward_set[indices[i]])
-        
-        action_att = np.argmin(preferred_attacks)
-        action_att = indices[action_att]
+            cosine[i] = np.absolute(np.dot(attacker_scalarization, rew_att[indices[i]])
+                                    / (att_mag * np.sqrt(np.einsum('i,i', rew_att[indices[i]], rew_att[indices[i]]))))
 
-        # # for j in range(state.size_graph + 1):
-        # #     if not state.actions_att[j]:
-        # #         reward_set[j] = np.ones(3, np.int)
-
-        # # actions_pareto_att = state._pareto_front_filter(reward_set)
-        # for j in range(100):
-        #     action_att = np.random.randint(0, state.size_graph)
-        #     if state.actions_att[action_att] == 1:
-        #         break
+        # choose the strategy closest to the attacker scalarization
+        if np.random.rand() < 0.9:
+            action_att = indices[np.argmax(cosine)]
+        else:
+            action_att = indices[np.random.randint(0, len(indices))]
 
         # Take actions, observe new state
         np.copyto(nn_input_old, state.nn_input)
@@ -297,11 +294,12 @@ def run_epochs(reader, epochs, run_type=0):
 
 
 #------- START MAIN CODE --------
+np.set_printoptions(formatter={'float': '{: 0.3f}'.format})
 
 # Configuration
 config = Config()
-config.num_service = 3
-config.num_viruses = 3
+config.num_service = 2
+config.num_viruses = 2
 config.num_datadir = 0
 config.num_nodes = 3
 config.offset = np.zeros(3, dtype=np.int)
@@ -314,7 +312,7 @@ epochs_options = [200, 200, 200, 200]
 
 node_options = [50]
 sparse_options = [0.1]
-points_options = [150]
+points_options = [60]
 epochs_options = [200]
 
 reader_files = []

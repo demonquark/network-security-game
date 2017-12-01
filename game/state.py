@@ -301,7 +301,6 @@ class State(object):
                             for i, value in enumerate(rrm_pts_def_cost)])
 
         self.reward_matrix = np.stack((rrm_serv, rrm_data, rrm_pts), axis=-1)
-        print (self.reward_matrix.shape)
         return self.reward_matrix
 
     def make_move(self, att_action=-1, def_action=-1):
@@ -485,7 +484,7 @@ class State(object):
             self.actions_pareto_def[j] = True
         self.actions_pareto_def[self.size_graph] = True
 
-        return pareto_fronts[is_efficient]
+        return pareto_fronts[is_efficient], self.actions_pareto_def
 
     def pareto_defense_actions(self):
         """return: A boolean array with the Pareto efficient defences"""
