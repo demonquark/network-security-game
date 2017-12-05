@@ -18,6 +18,10 @@ from .game import GameObject
 def run_game(run_type=0):
     """Generates random networks and outputs the results of running through several algorithms"""
 
+    if run_type == 1:
+        print("This model cannot be run iteratively. Please use the GUI to see the model in action.")
+        return
+
     # Configuration
     config = Config()
     config.num_service = 3

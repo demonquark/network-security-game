@@ -587,9 +587,12 @@ class ModelGUI(object):
         if isinstance(state, ChaosState):
             self.strvar_game_definition.set(self.txt_game_def_options[2])
             self.select_game_model(self.txt_game_def_options[2])
-        else:
+        elif isinstance(state, State):
             self.strvar_game_definition.set(self.txt_game_def_options[1])
             self.select_game_model(self.txt_game_def_options[1])
+        else:
+            self.strvar_game_definition.set(self.txt_game_def_options[0])
+            self.select_game_model(self.txt_game_def_options[0])
 
         self.strvar_nodes.set("{}".format(state.config.num_nodes))
         self.strvar_server_ratio0.set("{}".format(1))

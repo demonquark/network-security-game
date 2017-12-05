@@ -93,11 +93,11 @@ class ChainState(object):
             node1 = 0
             node2 = self.size_nodes - 1
             for j in range(self.size_edges):
-                self.mult_edges_scd[i][j] = np.minimum(self.max_con, np.maximum(0,
-                        np.minimum(self.nodes_con[node1] +
-                                   self.strat_def[(i * self.size_nodes) + node1],
-                                   self.nodes_con[node2] +
-                                   self.strat_def[(i * self.size_nodes) + node2])))
+                self.mult_edges_scd[i][j] = np.minimum(
+                    self.max_con, np.maximum(0, np.minimum(self.nodes_con[node1] +
+                                                           self.strat_def[(i * self.size_nodes) + node1],
+                                                           self.nodes_con[node2] +
+                                                           self.strat_def[(i * self.size_nodes) + node2])))
 
                 # update references to the next nodes
                 node2 -= 1
