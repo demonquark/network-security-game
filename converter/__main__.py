@@ -20,7 +20,7 @@ def main():
     if arg_id == 0:
         # run the game for the requested state
         snap = SnapConverter(sys.argv[2] if len(sys.argv) > 2 else None)
-        snap.read_state(None, "snap_data.csv")
+        snap.read_state("snap_data.txt", "snap_data.csv")
     else:
         print("Invalid command line argument. Please add one of the following arguments: {}".format(valid_arguments))
 
