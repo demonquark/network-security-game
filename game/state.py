@@ -7,6 +7,7 @@
 import random
 import numpy as np
 
+
 class Config(object):
     """Define the configuration of the game"""
     # define graph
@@ -31,7 +32,7 @@ class Config(object):
 
     # define scalarization weights
     scalarization = np.array([6, 2, 2], dtype=np.int)
-    scalarize_att = np.array([6, 2, 2], dtype=np.int)
+    scalarize_att = np.array([1, 1, 1], dtype=np.int)
     offset = np.zeros(3, dtype=np.int)
     size_bots = 60
 
@@ -46,7 +47,8 @@ class Config(object):
 
 class State(object):
     """Save the values in a state"""
-    def __init__(self, config, default_input=None, default_edges=None, default_graph_weights=None, default_reward_matrix=None):
+    def __init__(self, config, default_input=None, default_edges=None,
+                 default_graph_weights=None, default_reward_matrix=None):
         # graph variables
         self.config = config
         self.size_graph_col1 = config.num_service
@@ -79,7 +81,7 @@ class State(object):
                                         * config.def_cost_weights[2]])
 
         # chaos state only
-        self.random_matrix = np.zeros( (self.size_graph + 1) * (self.size_graph + 1), dtype=float)
+        self.random_matrix = np.zeros((self.size_graph + 1) * (self.size_graph + 1), dtype=float)
         for i in range(len(self.random_matrix)):
             if (i // (self.size_graph + 1)) % 2 == 0:
                 self.random_matrix[i] = np.random.rand()
@@ -87,10 +89,10 @@ class State(object):
                 self.random_matrix[i] = self.random_matrix[i-(self.size_graph + 1)]
 
         # neural network variables
-        self.nn_input = np.zeros(self.size_graph + 2, dtype=np.int) # +2 for the game points
-        self.actions_def = np.ones(self.size_graph + 1, dtype=bool) # +1 for do nothing
-        self.actions_pareto_def = np.ones(self.size_graph + 1, dtype=bool) # +1 for do nothing
-        self.actions_att = np.ones(self.size_graph + 1, dtype=bool) # +1 for do nothing
+        self.nn_input = np.zeros(self.size_graph + 2, dtype=np.int)  # +2 for the game points
+        self.actions_def = np.ones(self.size_graph + 1, dtype=bool)  # +1 for do nothing
+        self.actions_pareto_def = np.ones(self.size_graph + 1, dtype=bool)  # +1 for do nothing
+        self.actions_att = np.ones(self.size_graph + 1, dtype=bool)  # +1 for do nothing
         self.generate_graph(default_input, default_edges, default_graph_weights)
 
     def generate_graph(self, default_input=None, default_edges=None, default_graph_weights=None):
@@ -247,8 +249,8 @@ class State(object):
                         # action cost exceeds available points
                         self.actions_att[i] = 0
                 # it's data, so check if we can steal data
-                elif not np.any(self.nn_input[i - col_index + self.size_graph_col1
-                                              :i - col_index + self.size_graph_col2] == 1):
+                elif not np.any(self.nn_input[i - col_index + self.size_graph_col1:
+                                              i - col_index + self.size_graph_col2] == 1):
                     # check if we can afford to steal data
                     if self.att_cost[col_index] <= self.nn_input[-2]:
                         self.actions_att[i] = 1
@@ -389,7 +391,6 @@ class State(object):
         # f_3: difference in game points
         self.score_now[2] = self.nn_input[-1] - self.nn_input[-2]
 
-
     def _update_valid_actions(self, att_action=-1, def_action=-1):
         """Update the valid actions based on remaining game points"""
 
@@ -433,7 +434,7 @@ class State(object):
         self.actions_att[self.size_graph] = False
         self.actions_def[self.size_graph] = False
 
-        if  not (np.any(self.actions_att) and np.any(self.actions_att)):
+        if not (np.any(self.actions_att) and np.any(self.actions_att)):
             np.copyto(self.actions_pareto_def, self.actions_def)
             return self.actions_pareto_def
 
@@ -478,8 +479,8 @@ class State(object):
 
         self.actions_att[self.size_graph] = True
         self.actions_def[self.size_graph] = True
-     
-        self.actions_pareto_def = np.zeros(self.size_graph + 1, dtype=bool) # +1 for do nothing
+
+        self.actions_pareto_def = np.zeros(self.size_graph + 1, dtype=bool)  # +1 for do nothing
         for i, j in enumerate(indices[is_efficient]):
             self.actions_pareto_def[j] = True
         self.actions_pareto_def[self.size_graph] = True
@@ -492,7 +493,7 @@ class State(object):
         self.actions_att[self.size_graph] = False
         self.actions_def[self.size_graph] = False
 
-        if  not (np.any(self.actions_att) and np.any(self.actions_att)):
+        if not (np.any(self.actions_att) and np.any(self.actions_att)):
             np.copyto(self.actions_pareto_def, self.actions_def)
             return self.actions_pareto_def
 
@@ -537,8 +538,8 @@ class State(object):
 
         self.actions_att[self.size_graph] = True
         self.actions_def[self.size_graph] = True
-     
-        self.actions_pareto_def = np.zeros(self.size_graph + 1, dtype=bool) # +1 for do nothing
+
+        self.actions_pareto_def = np.zeros(self.size_graph + 1, dtype=bool)  # +1 for do nothing
         for i, j in enumerate(indices[is_efficient]):
             self.actions_pareto_def[j] = True
         self.actions_pareto_def[self.size_graph] = True
@@ -592,11 +593,13 @@ class State(object):
         return self.score_now if current else self.score_old
 
     def print_graph(self):
-        print (self.get_graph())
-        print (self.get_weight())
-        print ("Nodes: {}, Services: {}, Viruses: {}, Datadir: {}, Edges: {}".format(self.config.num_nodes, self.config.num_service, 
-                                                                                    self.config.num_viruses, self.config.num_datadir, self.size_graph_edges))
-        print ("Cost Attack: {}, Cost Defense: {}".format(self.att_cost, self.def_cost))
-        print ("Game points: {}, {} | State score: {} -> {} | Maintenance: {}".format(self.get_points(False), self.get_points(True), 
-                                                                            self.score_old, self.get_score(), self.maintenance_cost))
-        print ("---------")
+        print(self.get_graph())
+        print(self.get_weight())
+        print("Nodes: {}, Services: {}, Viruses: {}, Datadir: {}, Edges: {}"
+              .format(self.config.num_nodes, self.config.num_service,
+                      self.config.num_viruses, self.config.num_datadir, self.size_graph_edges))
+        print("Cost Attack: {}, Cost Defense: {}".format(self.att_cost, self.def_cost))
+        print("Game points: {}, {} | State score: {} -> {} | Maintenance: {}"
+              .format(self.get_points(False), self.get_points(True),
+                      self.score_old, self.get_score(), self.maintenance_cost))
+        print("---------")

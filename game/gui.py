@@ -1,30 +1,31 @@
+# File: gui.py
+# Class file for the Graphical User Interface
+# - contains the a single class that manages the GUI
+# - shows all three state objects
+
+import numpy as np
+import tkinter as Tk
+import sys
+from . import Config, State
+from . import ChaosState
+from . import ChainState
+from . import StateReader
+
 import matplotlib
 matplotlib.use('TkAgg')
-
-import networkx as nx
-from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from matplotlib.figure import Figure
-import matplotlib.animation as animation
+from mpl_toolkits.mplot3d import Axes3D
 
-import sys
-import tkinter as Tk
-
-import numpy as np
-from state import Config, State
-from chaosstate import ChaosState
-from chainstate import ChainState
-from reader import StateReader
 
 class ModelGUI(object):
     """Create the GUI"""
     def __init__(self, app_root):
-
-        # string vars 
+        
+        # string vars
         self.strvar_game_definition = Tk.StringVar()
         self.strvar_nodes = Tk.StringVar()
         self.strvar_server_ratio0 = Tk.StringVar()
@@ -190,7 +191,8 @@ class ModelGUI(object):
         self.frame_config0 = Tk.Frame(self.frame_control_panel, borderwidth=1, width=150, height=450)
         self.frame_config1 = Tk.Frame(self.frame_control_panel, borderwidth=1, width=150, height=450)
         self.frame_config2 = Tk.Frame(self.frame_control_panel, borderwidth=1, width=150, height=450)
-        self.button_generate = Tk.Button(self.frame_control_panel, text=self.txt_generate_graph, command=self.generate_graphs)
+        self.button_generate = Tk.Button(self.frame_control_panel,
+                                         text=self.txt_generate_graph, command=self.generate_graphs)
         self.button_quit = Tk.Button(self.frame_control_panel, text=self.txt_quit, command=sys.exit)
         self.button_file = Tk.Button(self.frame_control_panel, text=self.txt_load_file, command=self.load_file)
 
@@ -204,18 +206,24 @@ class ModelGUI(object):
         Tk.Label(self.frame_config0, text=self.txt_num_att_strat).grid(column=0, row=6, sticky='w')
         Tk.Label(self.frame_config0, text=self.txt_num_def_strat).grid(column=0, row=7, sticky='w')
 
-        Tk.Entry(self.frame_config0, textvariable=self.strvar_nodes, width=3).grid(column=1, row=0, columnspan=4, sticky='w')
+        Tk.Entry(self.frame_config0, textvariable=self.strvar_nodes, width=3).grid(column=1, row=0,
+                                                                                   columnspan=4, sticky='w')
         Tk.Entry(self.frame_config0, textvariable=self.strvar_server_ratio0, width=3).grid(column=1, row=1, sticky='w')
         Tk.Label(self.frame_config0, text=self.txt_colon).grid(column=2, row=1, sticky='w')
         Tk.Entry(self.frame_config0, textvariable=self.strvar_server_ratio1, width=3).grid(column=3, row=1, sticky='w')
         Tk.Entry(self.frame_config0, textvariable=self.strvar_capture_cost0, width=3).grid(column=1, row=2, sticky='w')
         Tk.Label(self.frame_config0, text=self.txt_colon).grid(column=2, row=2, sticky='w')
         Tk.Entry(self.frame_config0, textvariable=self.strvar_capture_cost1, width=3).grid(column=3, row=2, sticky='w')
-        Tk.Entry(self.frame_config0, textvariable=self.strvar_link_fail, width=3).grid(column=1, row=3, columnspan=4, sticky='w')
-        Tk.Entry(self.frame_config0, textvariable=self.strvar_alpha, width=3).grid(column=1, row=4, columnspan=4, sticky='w')
-        Tk.Entry(self.frame_config0, textvariable=self.strvar_beta, width=3).grid(column=1, row=5, columnspan=4, sticky='w')
-        Tk.Entry(self.frame_config0, textvariable=self.strvar_num_att_strat, width=3).grid(column=1, row=6, columnspan=4, sticky='w')
-        Tk.Entry(self.frame_config0, textvariable=self.strvar_num_def_strat, width=3).grid(column=1, row=7, columnspan=4, sticky='w')
+        Tk.Entry(self.frame_config0, textvariable=self.strvar_link_fail, width=3).grid(column=1, row=3,
+                                                                                       columnspan=4, sticky='w')
+        Tk.Entry(self.frame_config0, textvariable=self.strvar_alpha, width=3).grid(column=1, row=4,
+                                                                                   columnspan=4, sticky='w')
+        Tk.Entry(self.frame_config0, textvariable=self.strvar_beta, width=3).grid(column=1, row=5,
+                                                                                  columnspan=4, sticky='w')
+        Tk.Entry(self.frame_config0, textvariable=self.strvar_num_att_strat, width=3).grid(column=1, row=6,
+                                                                                           columnspan=4, sticky='w')
+        Tk.Entry(self.frame_config0, textvariable=self.strvar_num_def_strat, width=3).grid(column=1, row=7,
+                                                                                           columnspan=4, sticky='w')
 
         # config 1 variables
         Tk.Label(self.frame_config1, text=self.txt_nodes).grid(column=0, row=0, sticky='w')
@@ -239,39 +247,63 @@ class ModelGUI(object):
         Tk.Label(self.frame_config1, text=self.txt_att_points).grid(column=0, row=18, sticky='w')
         Tk.Label(self.frame_config1, text=self.txt_def_points).grid(column=0, row=19, sticky='w')
 
-        Tk.Entry(self.frame_config1, textvariable=self.strvar_nodes, width=3).grid(column=1, row=0, columnspan=2, sticky='w')
+        Tk.Entry(self.frame_config1, textvariable=self.strvar_nodes, width=3).grid(column=1, row=0,
+                                                                                   columnspan=2, sticky='w')
         Tk.Entry(self.frame_config1, textvariable=self.strvar_server_ratio0, width=3).grid(column=1, row=1, sticky='w')
         Tk.Label(self.frame_config1, text=self.txt_colon).grid(column=2, row=1, sticky='w')
         Tk.Entry(self.frame_config1, textvariable=self.strvar_server_ratio1, width=3).grid(column=3, row=1, sticky='w')
-        Tk.Entry(self.frame_config1, textvariable=self.strvar_sparsity, width=3).grid(column=1, row=2, columnspan=4, sticky='w')
-        Tk.Entry(self.frame_config1, textvariable=self.strvar_num_services, width=3).grid(column=1, row=4, columnspan=4, sticky='w')
-        Tk.Entry(self.frame_config1, textvariable=self.strvar_service_server_cost0, width=3).grid(column=1, row=5, sticky='w')
+        Tk.Entry(self.frame_config1, textvariable=self.strvar_sparsity, width=3).grid(column=1, row=2,
+                                                                                      columnspan=4, sticky='w')
+        Tk.Entry(self.frame_config1, textvariable=self.strvar_num_services, width=3).grid(column=1, row=4,
+                                                                                          columnspan=4, sticky='w')
+        Tk.Entry(self.frame_config1, textvariable=self.strvar_service_server_cost0, width=3).grid(column=1, row=5,
+                                                                                                  sticky='w')
         Tk.Label(self.frame_config1, text=self.txt_dash).grid(column=2, row=5, sticky='w')
-        Tk.Entry(self.frame_config1, textvariable=self.strvar_service_server_cost1, width=3).grid(column=3, row=5, sticky='w')
-        Tk.Entry(self.frame_config1, textvariable=self.strvar_service_client_cost0, width=3).grid(column=1, row=6, sticky='w')
+        Tk.Entry(self.frame_config1, textvariable=self.strvar_service_server_cost1, width=3).grid(column=3, row=5,
+                                                                                                  sticky='w')
+        Tk.Entry(self.frame_config1, textvariable=self.strvar_service_client_cost0, width=3).grid(column=1, row=6,
+                                                                                                  sticky='w')
         Tk.Label(self.frame_config1, text=self.txt_dash).grid(column=2, row=6, sticky='w')
-        Tk.Entry(self.frame_config1, textvariable=self.strvar_service_client_cost1, width=3).grid(column=3, row=6, sticky='w')
-        Tk.Entry(self.frame_config1, textvariable=self.strvar_num_virus, width=3).grid(column=1, row=7, columnspan=4, sticky='w')
-        Tk.Entry(self.frame_config1, textvariable=self.strvar_virus_server_cost0, width=3).grid(column=1, row=8, sticky='w')
+        Tk.Entry(self.frame_config1, textvariable=self.strvar_service_client_cost1, width=3).grid(column=3, row=6,
+                                                                                                  sticky='w')
+        Tk.Entry(self.frame_config1, textvariable=self.strvar_num_virus, width=3).grid(column=1, row=7,
+                                                                                       columnspan=4, sticky='w')
+        Tk.Entry(self.frame_config1, textvariable=self.strvar_virus_server_cost0, width=3).grid(column=1, row=8,
+                                                                                                sticky='w')
         Tk.Label(self.frame_config1, text=self.txt_dash).grid(column=2, row=8, sticky='w')
-        Tk.Entry(self.frame_config1, textvariable=self.strvar_virus_server_cost1, width=3).grid(column=3, row=8, sticky='w')
-        Tk.Entry(self.frame_config1, textvariable=self.strvar_virus_client_cost0, width=3).grid(column=1, row=9, sticky='w')
+        Tk.Entry(self.frame_config1, textvariable=self.strvar_virus_server_cost1, width=3).grid(column=3, row=8,
+                                                                                                sticky='w')
+        Tk.Entry(self.frame_config1, textvariable=self.strvar_virus_client_cost0, width=3).grid(column=1, row=9,
+                                                                                                sticky='w')
         Tk.Label(self.frame_config1, text=self.txt_dash).grid(column=2, row=9, sticky='w')
-        Tk.Entry(self.frame_config1, textvariable=self.strvar_virus_client_cost1, width=3).grid(column=3, row=9, sticky='w')
-        Tk.Entry(self.frame_config1, textvariable=self.strvar_num_data, width=3).grid(column=1, row=10, columnspan=4, sticky='w')
-        Tk.Entry(self.frame_config1, textvariable=self.strvar_data_server_cost0, width=3).grid(column=1, row=11, sticky='w')
+        Tk.Entry(self.frame_config1, textvariable=self.strvar_virus_client_cost1, width=3).grid(column=3, row=9,
+                                                                                                sticky='w')
+        Tk.Entry(self.frame_config1, textvariable=self.strvar_num_data, width=3).grid(column=1, row=10,
+                                                                                      columnspan=4, sticky='w')
+        Tk.Entry(self.frame_config1, textvariable=self.strvar_data_server_cost0, width=3).grid(column=1, row=11,
+                                                                                               sticky='w')
         Tk.Label(self.frame_config1, text=self.txt_dash).grid(column=2, row=11, sticky='w')
-        Tk.Entry(self.frame_config1, textvariable=self.strvar_data_server_cost1, width=3).grid(column=3, row=11, sticky='w')
-        Tk.Entry(self.frame_config1, textvariable=self.strvar_data_client_cost0, width=3).grid(column=1, row=12, sticky='w')
+        Tk.Entry(self.frame_config1, textvariable=self.strvar_data_server_cost1, width=3).grid(column=3, row=11,
+                                                                                               sticky='w')
+        Tk.Entry(self.frame_config1, textvariable=self.strvar_data_client_cost0, width=3).grid(column=1, row=12,
+                                                                                               sticky='w')
         Tk.Label(self.frame_config1, text=self.txt_dash).grid(column=2, row=12, sticky='w')
-        Tk.Entry(self.frame_config1, textvariable=self.strvar_data_client_cost1, width=3).grid(column=3, row=12, sticky='w')
-        Tk.Entry(self.frame_config1, textvariable=self.strvar_att_service_cost, width=3).grid(column=1, row=13, columnspan=4, sticky='w')
-        Tk.Entry(self.frame_config1, textvariable=self.strvar_att_virus_cost, width=3).grid(column=1, row=14, columnspan=4, sticky='w')
-        Tk.Entry(self.frame_config1, textvariable=self.strvar_att_data_cost, width=3).grid(column=1, row=15, columnspan=4, sticky='w')
-        Tk.Entry(self.frame_config1, textvariable=self.strvar_def_service_cost, width=3).grid(column=1, row=16, columnspan=4, sticky='w')
-        Tk.Entry(self.frame_config1, textvariable=self.strvar_def_virus_cost, width=3).grid(column=1, row=17, columnspan=4, sticky='w')
-        Tk.Entry(self.frame_config1, textvariable=self.strvar_att_points, width=3).grid(column=1, row=18, columnspan=4, sticky='w')
-        Tk.Entry(self.frame_config1, textvariable=self.strvar_def_points, width=3).grid(column=1, row=19, columnspan=4, sticky='w')
+        Tk.Entry(self.frame_config1, textvariable=self.strvar_data_client_cost1, width=3).grid(column=3, row=12,
+                                                                                               sticky='w')
+        Tk.Entry(self.frame_config1, textvariable=self.strvar_att_service_cost, width=3).grid(column=1, row=13,
+                                                                                              columnspan=4, sticky='w')
+        Tk.Entry(self.frame_config1, textvariable=self.strvar_att_virus_cost, width=3).grid(column=1, row=14,
+                                                                                            columnspan=4, sticky='w')
+        Tk.Entry(self.frame_config1, textvariable=self.strvar_att_data_cost, width=3).grid(column=1, row=15,
+                                                                                           columnspan=4, sticky='w')
+        Tk.Entry(self.frame_config1, textvariable=self.strvar_def_service_cost, width=3).grid(column=1, row=16,
+                                                                                              columnspan=4, sticky='w')
+        Tk.Entry(self.frame_config1, textvariable=self.strvar_def_virus_cost, width=3).grid(column=1, row=17,
+                                                                                            columnspan=4, sticky='w')
+        Tk.Entry(self.frame_config1, textvariable=self.strvar_att_points, width=3).grid(column=1, row=18,
+                                                                                        columnspan=4, sticky='w')
+        Tk.Entry(self.frame_config1, textvariable=self.strvar_def_points, width=3).grid(column=1, row=19,
+                                                                                        columnspan=4, sticky='w')
 
         # config 2 variables
         Tk.Label(self.frame_config2, text=self.txt_nodes).grid(column=0, row=0, sticky='w')
@@ -287,25 +319,37 @@ class ModelGUI(object):
         Tk.Label(self.frame_config2, text=self.txt_att_ratio).grid(column=0, row=10, sticky='w')
         Tk.Label(self.frame_config2, text=self.txt_def_ratio).grid(column=0, row=11, sticky='w')
 
-        Tk.Entry(self.frame_config2, textvariable=self.strvar_nodes, width=3).grid(column=1, row=0, columnspan=2, sticky='w')
+        Tk.Entry(self.frame_config2, textvariable=self.strvar_nodes, width=3).grid(column=1, row=0,
+                                                                                   columnspan=2, sticky='w')
         Tk.Entry(self.frame_config2, textvariable=self.strvar_server_ratio0, width=3).grid(column=1, row=1, sticky='w')
         Tk.Label(self.frame_config2, text=self.txt_colon).grid(column=2, row=1, sticky='w')
         Tk.Entry(self.frame_config2, textvariable=self.strvar_server_ratio1, width=3).grid(column=3, row=1, sticky='w')
-        Tk.Entry(self.frame_config2, textvariable=self.strvar_sparsity, width=3).grid(column=1, row=2, columnspan=4, sticky='w')
-        Tk.Entry(self.frame_config2, textvariable=self.strvar_num_services, width=3).grid(column=1, row=4, columnspan=4, sticky='w')
-        Tk.Entry(self.frame_config2, textvariable=self.strvar_service_server_cost0, width=3).grid(column=1, row=5, sticky='w')
+        Tk.Entry(self.frame_config2, textvariable=self.strvar_sparsity, width=3).grid(column=1, row=2,
+                                                                                      columnspan=4, sticky='w')
+        Tk.Entry(self.frame_config2, textvariable=self.strvar_num_services, width=3).grid(column=1, row=4,
+                                                                                          columnspan=4, sticky='w')
+        Tk.Entry(self.frame_config2, textvariable=self.strvar_service_server_cost0, width=3).grid(column=1, row=5,
+                                                                                                  sticky='w')
         Tk.Label(self.frame_config2, text=self.txt_dash).grid(column=2, row=5, sticky='w')
-        Tk.Entry(self.frame_config2, textvariable=self.strvar_service_server_cost1, width=3).grid(column=3, row=5, sticky='w')
-        Tk.Entry(self.frame_config2, textvariable=self.strvar_service_client_cost0, width=3).grid(column=1, row=6, sticky='w')
+        Tk.Entry(self.frame_config2, textvariable=self.strvar_service_server_cost1, width=3).grid(column=3, row=5,
+                                                                                                  sticky='w')
+        Tk.Entry(self.frame_config2, textvariable=self.strvar_service_client_cost0, width=3).grid(column=1, row=6,
+                                                                                                  sticky='w')
         Tk.Label(self.frame_config2, text=self.txt_dash).grid(column=2, row=6, sticky='w')
-        Tk.Entry(self.frame_config2, textvariable=self.strvar_service_client_cost1, width=3).grid(column=3, row=6, sticky='w')
-        Tk.Entry(self.frame_config2, textvariable=self.strvar_virus_server_cost0, width=3).grid(column=1, row=7, sticky='w')
+        Tk.Entry(self.frame_config2, textvariable=self.strvar_service_client_cost1, width=3).grid(column=3, row=6,
+                                                                                                  sticky='w')
+        Tk.Entry(self.frame_config2, textvariable=self.strvar_virus_server_cost0, width=3).grid(column=1, row=7,
+                                                                                                sticky='w')
         Tk.Label(self.frame_config2, text=self.txt_dash).grid(column=2, row=7, sticky='w')
-        Tk.Entry(self.frame_config2, textvariable=self.strvar_virus_server_cost1, width=3).grid(column=3, row=7, sticky='w')
-        Tk.Entry(self.frame_config2, textvariable=self.strvar_virus_client_cost0, width=3).grid(column=1, row=8, sticky='w')
+        Tk.Entry(self.frame_config2, textvariable=self.strvar_virus_server_cost1, width=3).grid(column=3, row=7,
+                                                                                                sticky='w')
+        Tk.Entry(self.frame_config2, textvariable=self.strvar_virus_client_cost0, width=3).grid(column=1, row=8,
+                                                                                                sticky='w')
         Tk.Label(self.frame_config2, text=self.txt_dash).grid(column=2, row=8, sticky='w')
-        Tk.Entry(self.frame_config2, textvariable=self.strvar_virus_client_cost1, width=3).grid(column=3, row=8, sticky='w')
-        Tk.Entry(self.frame_config2, textvariable=self.strvar_att_bots, width=3).grid(column=1, row=9, columnspan=4, sticky='w')
+        Tk.Entry(self.frame_config2, textvariable=self.strvar_virus_client_cost1, width=3).grid(column=3, row=8,
+                                                                                                sticky='w')
+        Tk.Entry(self.frame_config2, textvariable=self.strvar_att_bots, width=3).grid(column=1, row=9,
+                                                                                      columnspan=4, sticky='w')
         Tk.Entry(self.frame_config2, textvariable=self.strvar_att_ratio0, width=2).grid(column=1, row=10, sticky='w')
         Tk.Label(self.frame_config2, text=self.txt_colon).grid(column=2, row=10, sticky='w')
         Tk.Entry(self.frame_config2, textvariable=self.strvar_att_ratio1, width=2).grid(column=3, row=10, sticky='w')
@@ -320,8 +364,10 @@ class ModelGUI(object):
         # results variables
         Tk.Label(self.frame_results, text=self.txt_results0).grid(column=0, row=0, sticky='w')
         Tk.Label(self.frame_results, text=self.txt_results1).grid(column=0, row=1, sticky='w')
-        self.label_results0 = Tk.Label(self.frame_results, textvariable=self.strvar_results0).grid(column=1, row=0, sticky='w')
-        self.label_results1 = Tk.Label(self.frame_results, textvariable=self.strvar_results1).grid(column=1, row=1, sticky='w')
+        self.label_results0 = Tk.Label(self.frame_results, textvariable=self.strvar_results0).grid(column=1, row=0,
+                                                                                                   sticky='w')
+        self.label_results1 = Tk.Label(self.frame_results, textvariable=self.strvar_results1).grid(column=1, row=1,
+                                                                                                   sticky='w')
 
         # create a state
         self.state = None
@@ -421,22 +467,28 @@ class ModelGUI(object):
         config.size_att_strategies = self.toInt(self.strvar_num_att_strat.get())
         config.size_def_strategies = self.toInt(self.strvar_num_def_strat.get())
 
-        config.low_value_nodes = [[self.toInt(self.strvar_service_client_cost0.get()), self.toInt(self.strvar_service_client_cost1.get())],
-                                  [self.toInt(self.strvar_virus_client_cost0.get()), self.toInt(self.strvar_virus_client_cost1.get())],
-                                  [self.toInt(self.strvar_data_client_cost0.get()), self.toInt(self.strvar_data_client_cost1.get())]]
-        config.high_value_nodes = [[self.toInt(self.strvar_service_server_cost0.get()), self.toInt(self.strvar_service_server_cost1.get())],
-                                   [self.toInt(self.strvar_virus_server_cost0.get()), self.toInt(self.strvar_virus_server_cost1.get())],
-                                   [self.toInt(self.strvar_data_server_cost0.get()), self.toInt(self.strvar_data_server_cost1.get())]]
+        config.low_value_nodes = [[self.toInt(self.strvar_service_client_cost0.get()),
+                                   self.toInt(self.strvar_service_client_cost1.get())],
+                                  [self.toInt(self.strvar_virus_client_cost0.get()),
+                                   self.toInt(self.strvar_virus_client_cost1.get())],
+                                  [self.toInt(self.strvar_data_client_cost0.get()),
+                                   self.toInt(self.strvar_data_client_cost1.get())]]
+        config.high_value_nodes = [[self.toInt(self.strvar_service_server_cost0.get()),
+                                    self.toInt(self.strvar_service_server_cost1.get())],
+                                   [self.toInt(self.strvar_virus_server_cost0.get()),
+                                    self.toInt(self.strvar_virus_server_cost1.get())],
+                                   [self.toInt(self.strvar_data_server_cost0.get()),
+                                    self.toInt(self.strvar_data_server_cost1.get())]]
         config.att_points = self.toInt(self.strvar_att_points.get())
         config.def_points = self.toInt(self.strvar_def_points.get())
         config.att_cost_weights = np.array([self.toInt(self.strvar_att_service_cost),
                                             self.toInt(self.strvar_att_virus_cost),
                                             self.toInt(self.strvar_att_data_cost)],
-                                            dtype=np.int)
+                                           dtype=np.int)
         config.def_cost_weights = np.array([self.toInt(self.strvar_def_service_cost),
                                             self.toInt(self.strvar_def_virus_cost),
                                             0],
-                                            dtype=np.int)
+                                           dtype=np.int)
 
         data_points = None
         graph_is_3d = True
@@ -456,22 +508,25 @@ class ModelGUI(object):
             self.state.reset_reward_matrix()
             data_points = []
             for i in range(self.state.size_graph):
-                data_points.append(self.state.reward_matrix[i * (self.state.size_graph + 1):(i+1) * (self.state.size_graph + 1)])
+                data_points.append(self.state.reward_matrix[i * (self.state.size_graph + 1):
+                                                            (i+1) * (self.state.size_graph + 1)])
 
         # show the graphs
-        self.ax0 = self.plot_graph(self.figure0, self.ax0, data_points, self.txt_before_optimization, graph_is_3d, False)
-        self.ax1 = self.plot_graph(self.figure1, self.ax1, data_points, self.txt_after_optimization, graph_is_3d, True)
+        self.ax0 = self.plot_graph(self.figure0, self.ax0, data_points,
+                                   self.txt_before_optimization, graph_is_3d, False)
+        self.ax1 = self.plot_graph(self.figure1, self.ax1, data_points,
+                                   self.txt_after_optimization, graph_is_3d, True)
         self.canvas_plot0.draw()
         self.canvas_plot1.draw()
 
     def plot_graph(self, figure, ax, data_points, axis_title, graph_is_3d=True, calculate_pareto=False):
         """Graph the plot in a canvas"""
 
-        #call the clear method on your axes
+        # call the clear method on your axes
         if ax is not None:
             ax.clear()
             figure.delaxes(ax)
-        
+
         # create the new axes
         if graph_is_3d:
             ax = figure.add_subplot(111, projection='3d')
@@ -484,17 +539,15 @@ class ModelGUI(object):
         if graph_is_3d:
             ax.set_zlabel('f_3')
 
-        #color range is the same for all solutions (for pareto set and all solution set)
+        # color range is the same for all solutions (for pareto set and all solution set)
         max_color_range = len(data_points)
         if calculate_pareto:
             data_points, set_index = self.state.pareto_reward_matrix()
             set_in = [k for k, x in enumerate(set_index) if x]
-            # print("Set_Index: {}".format(set_index))
-
 
         # define color
         a_map = plt.get_cmap('brg')
-        cNorm  = colors.Normalize(vmin=0, vmax=max_color_range)
+        cNorm = colors.Normalize(vmin=0, vmax=max_color_range)
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=a_map)
 
         # plot the the data
@@ -506,16 +559,16 @@ class ModelGUI(object):
                 color_index = set_in[i]
 
             # get the points for the data set
-            pareto_front = data_points[i]            
-            temp_x = pareto_front[:,0]
-            temp_y = pareto_front[:,1]
+            pareto_front = data_points[i]         
+            temp_x = pareto_front[:, 0]
+            temp_y = pareto_front[:, 1]
             if graph_is_3d:
-                temp_z = pareto_front[:,2]
+                temp_z = pareto_front[:, 2]
                 ax.scatter(temp_x, temp_y, temp_z, color=scalarMap.to_rgba(color_index))
             else:
                 ax.scatter(temp_x, temp_y, color=scalarMap.to_rgba(color_index))
 
-        #call the draw method on your canvas
+        # call the draw method on your canvas
         ax.grid()
 
         if calculate_pareto:
@@ -583,30 +636,24 @@ class ModelGUI(object):
 
     def load_file(self):
         """Load a file"""
-        fname = Tk.filedialog.askopenfilename(filetypes=(("Template files", "*.csv"), ("All files", "*.*") ))
+        fname = Tk.filedialog.askopenfilename(filetypes=(("Template files", "*.csv"), ("All files", "*.*")))
         if fname:
             try:
                 print("Ready to read file from: {}".format(fname))
                 self.read_graph_file(fname)
-            except:
+            except (FileNotFoundError, IOError):
                 Tk.messagebox.showerror("Open Source File", "Failed to read file\n'%s'" % fname)
 
     def toFloat(self, value):
         try:
             float(value)
             return float(value)
-        except:
+        except (TypeError, ValueError):
             return float(0.2)
 
     def toInt(self, value):
         try:
             int(value)
             return int(value)
-        except:
+        except (TypeError, ValueError):
             return 1
-
-#------- START MAIN CODE --------
-
-root = Tk.Tk()
-gameApp = ModelGUI(root)
-root.mainloop()

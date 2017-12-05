@@ -5,9 +5,7 @@
 # - State2 (contains the current state and possible actions on the state)
 
 import numpy as np
-from state import Config
-import random
-import time
+
 
 class ChainState(object):
     """Save the values in a state"""
@@ -87,7 +85,6 @@ class ChainState(object):
         # calculate the effect on the shared connections
         self.calculate_defense()
 
-
     def calculate_defense(self):
         """Perform the defense action"""
 
@@ -117,13 +114,13 @@ class ChainState(object):
         chains = []
 
         # generate attack actions
-        for i in range(random.randint(2, 6)):
+        for i in range(np.random.randint(2, 6)):
             node1 = 0
             chain = []
 
             # find a starting node for a chain
             for j in range(self.size_nodes * 10):
-                node1 = random.randint(0, self.size_nodes - 1)
+                node1 = np.random.randint(0, self.size_nodes - 1)
                 if self.nodes_acc[node1] > 0:
                     chain.append(node1)
                     break
@@ -133,10 +130,10 @@ class ChainState(object):
                 continue
 
             # add nodes to the chain
-            for j in range(int(self.size_nodes * 2 / random.randint(2, 6))):
+            for j in range(int(self.size_nodes * 2 / np.random.randint(2, 6))):
                 # find a connecting node the chain
                 for k in range(self.size_nodes * 10):
-                    node1 = random.randint(0, self.size_nodes - 1)
+                    node1 = np.random.randint(0, self.size_nodes - 1)
                     if node1 not in chain:
                         chain.append(node1)
                         break
@@ -352,23 +349,23 @@ class ChainState(object):
 
         # calculate the minimum distance for the filtered strategies
         norm_set = np.square((defense_results - minpts) / (maxpts - minpts))
-        distances = np.average(np.sqrt(norm_set[:,:,0] + norm_set[:,:,1]), axis=1)
+        distances = np.average(np.sqrt(norm_set[:, :, 0] + norm_set[:, :, 1]), axis=1)
         lowest_value = np.min(distances)
 
         return lowest_value
 
     def print_graph(self):
         """Output the graph"""
-        print ("---------")
-        print ("Nodes: {}, Edges: {}".format(self.size_nodes, self.size_edges))
-        print ("Attacks: {}, Defenses: {}".format(self.size_atts, self.size_defs))
-        print ("Node Connections: {}".format(self.nodes_con))
-        print ("Node capture cost: {}".format(self.nodes_cap))
-        print ("Node access: {}".format(self.nodes_acc))
-        print ("Edges sco: {}".format(self.edges_sco.tolist()))
-        print ("Edges lfr: {}".format(self.edges_lfr))
-        print ("Strategy def: {}".format(self.strat_def))
-        print ("Strategy att: {}".format(self.strat_att_chain))
-        print ("Strategy att (cost): {}".format(self.strat_att_conn))
-        print ("Results: {}".format(self.results))
-        print ("---------")
+        print("---------")
+        print("Nodes: {}, Edges: {}".format(self.size_nodes, self.size_edges))
+        print("Attacks: {}, Defenses: {}".format(self.size_atts, self.size_defs))
+        print("Node Connections: {}".format(self.nodes_con))
+        print("Node capture cost: {}".format(self.nodes_cap))
+        print("Node access: {}".format(self.nodes_acc))
+        print("Edges sco: {}".format(self.edges_sco.tolist()))
+        print("Edges lfr: {}".format(self.edges_lfr))
+        print("Strategy def: {}".format(self.strat_def))
+        print("Strategy att: {}".format(self.strat_att_chain))
+        print("Strategy att (cost): {}".format(self.strat_att_conn))
+        print("Results: {}".format(self.results))
+        print("---------")

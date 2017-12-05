@@ -7,5 +7,5 @@ setup(name='network-security-game',
       author='Someone',
       author_email='demonquark@yahoo.es',
       license='MIT',
-      packages=['game'],
+      packages=['game','converter'],
       zip_safe=False)

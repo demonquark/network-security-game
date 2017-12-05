@@ -1,14 +1,15 @@
-# File: state.py
-# Class file for the state
-# Includes two classes
-# - Config (default configuration for the state)
-# - State2 (contains the current state and possible actions on the state)
+# File: chaosstate.py
+# Class file for the Chaos state (ChaosState)
+# - contains the current state and possible actions on the state
+# - child of the State class (see state.py)
+# - goal functions determined by a chaos function
 
 import numpy as np
-from state import Config, State
+from . import State
 
 
 class ChaosState(State):
+    """State object that uses chaos functions"""
 
     def reset_scores(self):
         """Calcute the state score from the graph"""
@@ -151,7 +152,7 @@ class ChaosState(State):
             if not really_false:
                 is_efficient[i] = True
 
-        pareto_indices_for_gui = np.zeros(num_possible_moves, dtype=bool) # +1 for do nothing
+        pareto_indices_for_gui = np.zeros(num_possible_moves, dtype=bool)  # +1 for do nothing
         for i, j in enumerate(indices[is_efficient]):
             pareto_indices_for_gui[j] = True
 
@@ -194,7 +195,7 @@ class ChaosState(State):
             if not really_false:
                 is_efficient[i] = True
 
-        self.actions_pareto_def = np.zeros(self.size_graph + 1, dtype=bool) # +1 for do nothing
+        self.actions_pareto_def = np.zeros(self.size_graph + 1, dtype=bool)  # +1 for do nothing
         for i, j in enumerate(indices[is_efficient]):
             self.actions_pareto_def[j] = True
         self.actions_pareto_def[self.size_graph] = True
@@ -239,7 +240,8 @@ class ChaosState(State):
                     if self.actions_pareto_def[def_indices[i]]:
                         # the cosine of the angle is the dot product divided by the distances
                         score = worst_case_scores[i]
-                        cosine[i] = np.absolute(np.dot(goal_vector,score) / (mag_goal * np.sqrt(np.einsum('i,i', score, score))))
+                        cosine[i] = np.absolute(np.dot(goal_vector, score)
+                                                / (mag_goal * np.sqrt(np.einsum('i,i', score, score))))
                     else:
                         cosine[i] = 0
 
@@ -248,13 +250,14 @@ class ChaosState(State):
 
                 # save the pareto solution as a valid option
                 for i in range(len(def_indices)):
-                    self.actions_pareto_def[def_indices[i]] = self.actions_pareto_def[def_indices[i]] and cosine[i] == cos_max
+                    self.actions_pareto_def[def_indices[i]] = (self.actions_pareto_def[def_indices[i]]
+                                                               and cosine[i] == cos_max)
 
         elif scalarization_approach == 4:
             #  Approach 4 (SCALARIZATION) take the highest scalarized value
             scalarized_defense_scores = np.zeros(len(def_indices), np.int)
             for i in range(len(def_indices)):
-                scalarized_defense_scores[i] = np.dot(self.config.scalarization, worst_case_scores[i,:])
+                scalarized_defense_scores[i] = np.dot(self.config.scalarization, worst_case_scores[i, :])
             maximum_score = np.max(scalarized_defense_scores)
             for i in range(len(def_indices)):
                 if scalarized_defense_scores[i] == maximum_score:
@@ -263,7 +266,7 @@ class ChaosState(State):
             #  Approach 5 (STOM_SCALARIZATION) use STOM to determine the scalarized value
             scalarized_defense_scores = np.zeros(len(def_indices), np.int)
             for i in range(len(def_indices)):
-                scalarized_defense_scores[i] = np.max(np.absolute(np.subtract(goal_vector, worst_case_scores[i,:])))
+                scalarized_defense_scores[i] = np.max(np.absolute(np.subtract(goal_vector, worst_case_scores[i, :])))
             minimum_score = np.min(scalarized_defense_scores)
             for i in range(len(def_indices)):
                 if scalarized_defense_scores[i] == minimum_score:
@@ -272,9 +275,9 @@ class ChaosState(State):
             #  Approach 6 (GUESS_SCALARIZATION) use GUESS to determine the scalarized value
             scalarized_defense_scores = np.zeros(len(def_indices), np.int)
             for i in range(len(def_indices)):
-                scalarized_defense_scores[i] = np.max(np.absolute(np.divide(np.subtract(goal_vector, worst_case_scores[i,:]), goal_vector)))
+                scalarized_defense_scores[i] = np.max(
+                    np.absolute(np.divide(np.subtract(goal_vector, worst_case_scores[i, :]), goal_vector)))
             minimum_score = np.min(scalarized_defense_scores)
             for i in range(len(def_indices)):
                 if scalarized_defense_scores[i] == minimum_score:
                     self.actions_pareto_def[def_indices[i]] = True
-            

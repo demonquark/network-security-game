@@ -4,10 +4,13 @@
 # - Config (default configuration for the state)
 # - State (contains the current state and possible actions on the state)
 
-import csv, ast
+import csv
+import ast
 import numpy as np
-from state import Config, State
-from chaosstate import ChaosState
+from . import Config, State
+from . import ChaosState
+from . import ChainState
+
 
 class StateReader(object):
     """Read config and state files"""
@@ -48,7 +51,10 @@ class StateReader(object):
             writer.writerow(state.nn_input)
             writer.writerow(state.graph_edges)
             writer.writerow(state.graph_weights)
-            writer.writerow(state.reward_matrix.tolist())
+            if state.reward_matrix is not None:
+                writer.writerow(state.reward_matrix.tolist())
+            else:
+                writer.writerow([0])
 
     def read_state(self, file_name=None, default_reward_matrix=None):
         """Read a state file"""
@@ -102,7 +108,7 @@ class StateReader(object):
                 state = ChaosState(config, default_input, default_edges, default_graph_weights, default_reward_matrix)
 
         else:
-            print ("Could not read config file.")
+            print("Could not read config file.")
 
         return state
 
